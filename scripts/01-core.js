@@ -1,7 +1,7 @@
 "use strict";
 
 const CONFIG = {
-  API_BASE: "https://personal-budget-api.svoy1997.workers.dev",
+  API_BASE: "https://personal-budget-api.bonaqu.workers.dev",
   SESSION_KEY: "budget_flow_ru_session_v4",
   QUEUE_KEY: "budget_flow_ru_pending_v3",
   CACHE_PREFIX: "budget_flow_ru_cache_",
