@@ -73,7 +73,10 @@ this.defaultData = defaultData;
 this.comparableDataSignature = comparableDataSignature;
 this.validateBackupPayload = validateBackupPayload;
 this.summarizeNormalizedData = summarizeNormalizedData;
-this.normalizeTemplateBucket = normalizeTemplateBucket;`, context, { filename: "01-core.js" });
+this.normalizeTemplateBucket = normalizeTemplateBucket;
+this.LOCAL_TEST_CREDENTIALS = LOCAL_TEST_CREDENTIALS;
+this.isLocalTestLogin = isLocalTestLogin;
+this.buildLocalTestData = buildLocalTestData;`, context, { filename: "01-core.js" });
 
   context.Storage = {
     saveCache(login, data) {
@@ -344,6 +347,17 @@ function testBudgetMathSyncAndBackup(ctx) {
   assert(addedDebt?.type === "expense" && addedDebt?.flowKind === "debt" && addedDebt?.categoryId === "exp_debt", "Template selection must add operation to the clicked budget group", addedDebt);
 }
 
+function testLocalTestAccountStaysLocal(ctx) {
+  assert(ctx.LOCAL_TEST_CREDENTIALS.login === "test1234", "Local test login must stay test1234", ctx.LOCAL_TEST_CREDENTIALS);
+  assert(ctx.LOCAL_TEST_CREDENTIALS.password === "test1234", "Local test password must stay test1234");
+  assert(ctx.isLocalTestLogin("test1234"), "test1234 must be recognized as a local-only test login");
+  assert(!ctx.isLocalTestLogin("codex-test"), "Cloud test-like names must not be treated as the configured local test account");
+
+  const demoData = ctx.buildLocalTestData();
+  assert(Array.isArray(demoData.transactions) && demoData.transactions.length > 0, "Local test account must provide demo budget data");
+  assert(ctx.summarizeNormalizedData(demoData).transactions > 0, "Local test demo data summary must be non-empty");
+}
+
 async function testSyncKeepsPendingFollowUpQueued() {
   const { context, timers, saves } = loadSyncContext();
   const firstPending = {
@@ -379,6 +393,7 @@ async function main() {
   const { context, consoleLines } = loadAppContext();
   await testFriendlyMessagesAndTechnicalLogs(context, consoleLines);
   testBudgetMathSyncAndBackup(context);
+  testLocalTestAccountStaysLocal(context);
   await testSyncKeepsPendingFollowUpQueued();
   console.log(JSON.stringify({
     ok: true,
@@ -389,6 +404,7 @@ async function main() {
       "backup-roundtrip",
       "budget-month-carryover",
       "template-target-bucket",
+      "local-test-account",
       "sync-follow-up-pending"
     ]
   }, null, 2));
