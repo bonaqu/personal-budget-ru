@@ -381,7 +381,7 @@ const Store = {
       draft.months[monthKey] = {
         ...draft.months[monthKey],
         ...patch,
-        start: Math.max(0, Utils.roundMoney(Utils.safeNumber(patch.start ?? draft.months[monthKey].start))),
+        start: Utils.roundMoney(Utils.safeNumber(patch.start ?? draft.months[monthKey].start)),
         manualStart: Boolean(patch.manualStart ?? draft.months[monthKey].manualStart),
         updatedAt: Utils.nowISO()
       };
@@ -479,7 +479,7 @@ const Store = {
     const previousMonthKey = this.previousMonthKey(cacheKey);
     const hasPreviousData = Boolean(this.data.months[previousMonthKey]) || this.getTransactions("month", previousMonthKey).length > 0;
 
-    let startBalance = Math.max(0, Utils.roundMoney(Utils.safeNumber(monthMeta.start)));
+    let startBalance = Utils.roundMoney(Utils.safeNumber(monthMeta.start));
     // Авто-режим берет остаток прошлого месяца, а ручной режим позволяет пользователю
     // зафиксировать собственную стартовую точку для текущего месяца.
     if (!monthMeta.manualStart && hasPreviousData) {
@@ -542,7 +542,7 @@ const Store = {
       currentDay,
       previousMonthKey,
       startBalance,
-      autoStartBalance: !monthMeta.manualStart && hasPreviousData ? startBalance : Math.max(0, Utils.roundMoney(Utils.safeNumber(monthMeta.start))),
+      autoStartBalance: !monthMeta.manualStart && hasPreviousData ? startBalance : Utils.roundMoney(Utils.safeNumber(monthMeta.start)),
       manualStart: Boolean(monthMeta.manualStart),
       freeCash: finalBalance,
       finalBalance,

@@ -564,9 +564,9 @@ const App = {
         });
         return;
       }
-      const message = Api.getMessage(error, "Не удалось загрузить данные аккаунта");
+      const message = Api.getFriendlyMessage(error, "Не удалось загрузить данные аккаунта");
       Sync.lastError = message;
-      Sync.status = error?.code === "NETWORK_UNAVAILABLE" || error?.code === "TIMEOUT" ? "offline" : "error";
+      Sync.status = ["OFFLINE", "NETWORK_UNAVAILABLE", "TIMEOUT"].includes(error?.code) ? "offline" : "error";
       Diagnostics.report("remote-load:failed", {
         code: error?.code || null,
         message,
@@ -672,15 +672,26 @@ const App = {
     UI.toast("Сессия завершена.", "info");
   },
 
-  syncNow() {
+  async syncNow() {
     UI.closeModal("accountMenuModal");
     if (!Auth.isAuthenticated()) {
       UI.toast("Сначала подключите аккаунт", "warning");
       return;
     }
     Sync.queueSync();
-    Sync.processQueue(true);
-    UI.toast("Сверяем изменения и отправляем свежую версию в облако", "info");
+    UI.toast("Проверяем данные и отправляем изменения в облако", "info");
+    await Sync.processQueue(true);
+    if (Sync.status === "synced" && !Sync.lastError) {
+      UI.toast("Данные синхронизированы", "success");
+      return;
+    }
+    if (Sync.status === "offline") {
+      UI.toast("Сейчас нет связи с облаком. Изменения сохранены на этом устройстве и отправятся позже.", "warning");
+      return;
+    }
+    if (Sync.status === "error") {
+      UI.toast(Sync.lastError || "Не получилось обновить облако. Данные на устройстве сохранены.", "error");
+    }
   },
 
   undo() {
@@ -744,7 +755,7 @@ const App = {
 
   updateMonthStart(value) {
     Store.saveMonthMeta(Store.viewMonth, {
-      start: Math.max(0, Utils.roundMoney(Utils.parseAmount(value)))
+      start: Utils.parseSignedAmount(value)
     });
     UI.renderApp();
   },
@@ -754,7 +765,7 @@ const App = {
     const stats = Store.statsForMonth(Store.viewMonth);
     Store.saveMonthMeta(Store.viewMonth, {
       manualStart: Boolean(enabled),
-      start: enabled && !(current.start > 0) ? stats.startBalance : current.start
+      start: enabled && Utils.roundMoney(current.start || 0) === 0 ? stats.startBalance : current.start
     });
     UI.renderApp();
   },
@@ -1638,6 +1649,13 @@ const Diagnostics = {
     if (!this.shouldLogToConsole(level)) {
       return;
     }
+    const lineDetails = payload && typeof payload === "object"
+      ? Object.entries(payload)
+        .filter(([, value]) => value !== null && value !== undefined && typeof value !== "object")
+        .map(([key, value]) => `${key}=${String(value)}`)
+        .join(" | ")
+      : String(payload ?? "");
+    console[method](`[Budget Diagnostics] ${label}${lineDetails ? ` | ${lineDetails}` : ""}`);
     console.groupCollapsed(`[Budget Audit] ${label}`);
     console[method](payload);
     console.groupEnd();

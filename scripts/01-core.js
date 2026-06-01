@@ -360,6 +360,16 @@ const Utils = {
     return Number.isFinite(parsed) && parsed > 0 ? this.roundMoney(parsed) : 0;
   },
 
+  parseSignedAmount(value) {
+    const normalized = String(value ?? "")
+      .replace(/\s+/g, "")
+      .replace(/[₽р]/gi, "")
+      .replace(/\u2212/g, "-")
+      .replace(",", ".");
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? this.roundMoney(parsed) : 0;
+  },
+
   safeNumber(value) {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? Number(parsed) : 0;
@@ -798,7 +808,7 @@ function ensureDefaultMonthMeta(months, monthKey) {
 
 function normalizeMonthMeta(raw) {
   return {
-    start: Math.max(0, Utils.roundMoney(Utils.safeNumber(raw?.start))),
+    start: Utils.roundMoney(Utils.safeNumber(raw?.start)),
     manualStart: Boolean(raw?.manualStart),
     updatedAt: raw?.updatedAt || Utils.nowISO()
   };
