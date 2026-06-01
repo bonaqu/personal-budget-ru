@@ -130,6 +130,7 @@ const App = {
     const isLocalOnly = Auth.isLocalOnly();
     const isLocalTest = isLocalOnly && isLocalTestLogin(login);
     const hasPending = !isLocalOnly && Sync.hasPendingChanges(login);
+    const syncStatus = hasPending && Sync.status === "synced" ? "pending" : Sync.status;
     let statusTone = "is-local";
     let statusLabel = "На устройстве";
     let subtextValue = "Бюджет хранится только на этом устройстве.";
@@ -150,32 +151,40 @@ const App = {
       subtextValue = Auth.getExpiry()
         ? `Аккаунт активен до ${new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(Auth.getExpiry()))}.`
         : "Аккаунт подключен в этом браузере.";
-      metaValue = "Аккаунт подключен и готов к синхронизации";
+      metaValue = hasPending
+        ? "Есть изменения на этом устройстве"
+        : "Аккаунт подключен. Синхронизация включена";
       passwordHintValue = "Смену пароля добавим чуть позже.";
-      sourceValue = "Аккаунт";
-      pendingValue = hasPending ? "Есть изменения" : "Нет";
+      sourceValue = hasPending ? "Это устройство" : "Аккаунт и облако";
+      pendingValue = hasPending ? "Ожидает отправки" : "Нет";
       lastSyncValue = Sync.lastSyncedAt ? Utils.timeSince(Sync.lastSyncedAt) : "Еще не было";
-      stateValue = Sync.status === "synced"
-        ? (hasPending
-          ? "На этом устройстве есть новые изменения. Мы уже держим их в очереди и скоро отправим в облако."
-          : (Sync.lastSyncedAt
+      stateValue = syncStatus === "pending"
+        ? "Изменения сохранены на этом устройстве. Мы отправим их в облако автоматически; после подтверждения статус станет «В облаке»."
+        : (syncStatus === "synced"
+          ? (Sync.lastSyncedAt
             ? `Все синхронизировано. Последняя синхронизация была ${Utils.timeSince(Sync.lastSyncedAt)}.`
-            : "Аккаунт подключен. Бюджет уже синхронизирован с облаком."))
-        : (Sync.status === "syncing"
-          ? "Сейчас отправляем последние изменения в облако."
-          : (Sync.status === "offline"
-            ? "Связи с облаком сейчас нет. Новые изменения уже сохранены на устройстве и отправятся позже."
-            : (Sync.status === "error"
-              ? `Не получилось обновить облако: ${Sync.lastError || "данные на устройстве сохранены, но облако пока еще не обновилось."}`
-              : "Аккаунт подключен. Сверяем данные с облаком.")));
-      if (Sync.status === "syncing") {
-        cloudValue = "Сверяем";
-      } else if (Sync.status === "offline") {
-        cloudValue = "Нет связи";
-      } else if (Sync.status === "error") {
-        cloudValue = "Есть сбой";
-      } else if (Sync.status === "synced") {
-        cloudValue = hasPending ? "Ждет отправки" : "В порядке";
+            : "Аккаунт подключен. Бюджет уже синхронизирован с облаком.")
+          : (syncStatus === "syncing"
+            ? (hasPending
+              ? "Отправляем изменения в облако. Можно продолжать работать, данные на устройстве уже сохранены."
+              : "Проверяем облако и сверяем данные аккаунта.")
+            : (syncStatus === "offline"
+              ? (hasPending
+                ? "Интернета сейчас нет. Изменения сохранены на устройстве и отправятся автоматически, когда связь вернется."
+                : "Интернета сейчас нет. Показываем последнюю сохраненную версию бюджета.")
+              : (syncStatus === "error"
+                ? `Не получилось обновить облако: ${Sync.lastError || "данные на устройстве сохранены, но облако пока еще не обновилось."}`
+                : "Аккаунт подключен. Сверяем данные с облаком."))));
+      if (syncStatus === "syncing") {
+        cloudValue = hasPending ? "Отправляем" : "Проверяем";
+      } else if (syncStatus === "offline") {
+        cloudValue = hasPending ? "Ждет связи" : "Нет связи";
+      } else if (syncStatus === "error") {
+        cloudValue = "Требует повтора";
+      } else if (syncStatus === "pending") {
+        cloudValue = "Обновляется";
+      } else if (syncStatus === "synced") {
+        cloudValue = "В порядке";
       } else {
         cloudValue = "Подключено";
       }
@@ -199,19 +208,19 @@ const App = {
     if (state) {
       state.textContent = stateValue;
       if (!isLocalOnly) {
-        if (Sync.status === "synced" && hasPending) {
-          statusTone = "is-syncing";
-          statusLabel = "Изменения";
-        } else if (Sync.status === "synced") {
-          statusTone = "is-synced";
-          statusLabel = "В облаке";
-        } else if (Sync.status === "syncing") {
+        if (syncStatus === "pending") {
           statusTone = "is-syncing";
           statusLabel = "Отправка";
-        } else if (Sync.status === "offline") {
+        } else if (syncStatus === "synced") {
+          statusTone = "is-synced";
+          statusLabel = "В облаке";
+        } else if (syncStatus === "syncing") {
+          statusTone = "is-syncing";
+          statusLabel = hasPending ? "Отправка" : "Проверка";
+        } else if (syncStatus === "offline") {
           statusTone = "is-offline";
           statusLabel = "Оффлайн";
-        } else if (Sync.status === "error") {
+        } else if (syncStatus === "error") {
           statusTone = "is-error";
           statusLabel = "Ошибка";
         }

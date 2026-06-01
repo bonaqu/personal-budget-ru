@@ -127,6 +127,110 @@ this.Store = Store;`, context, { filename: "04-store.js" });
   return { context, consoleLines, diagnostics, storage };
 }
 
+function loadSyncContext() {
+  const storage = new Map();
+  const timers = [];
+  const saves = [];
+  const context = {
+    console,
+    window: {
+      addEventListener() {}
+    },
+    navigator: { onLine: true },
+    setTimeout(callback, delay) {
+      const timer = { callback, delay };
+      timers.push(timer);
+      return timer;
+    },
+    clearTimeout() {},
+    Storage: {
+      savePending(value) {
+        storage.set("pending", value);
+      },
+      loadPending() {
+        return storage.get("pending") || null;
+      },
+      clearPending() {
+        storage.delete("pending");
+      },
+      saveLastSync(login, value) {
+        storage.set(`last:${login}`, value);
+      },
+      loadLastSync(login) {
+        return storage.get(`last:${login}`) || null;
+      }
+    },
+    Auth: {
+      login: "qa",
+      token: "token",
+      authenticated: true,
+      isAuthenticated() {
+        return this.authenticated;
+      },
+      isLocalOnly() {
+        return false;
+      },
+      getLogin() {
+        return this.login;
+      },
+      getToken() {
+        return this.token;
+      },
+      touchSession() {}
+    },
+    UI: {
+      renders: 0,
+      renderSyncState() {
+        this.renders += 1;
+      }
+    },
+    Api: {
+      async save(login, token, data) {
+        saves.push({ login, token, data });
+      },
+      async probeConnection() {
+        return { ok: true };
+      },
+      createError(code, message) {
+        const error = new Error(message);
+        error.code = code;
+        return error;
+      },
+      getFriendlyMessage(error, fallback) {
+        return error?.message || fallback;
+      },
+      isAuthSessionError() {
+        return false;
+      },
+      isRetryable() {
+        return false;
+      }
+    },
+    Diagnostics: {
+      report() {}
+    },
+    Date,
+    Math,
+    Number,
+    String,
+    Boolean,
+    Array,
+    Object,
+    JSON
+  };
+
+  vm.createContext(context);
+  vm.runInContext(`${fs.readFileSync("scripts/01-core.js", "utf8")}
+this.Utils = Utils;
+this.normalizeData = normalizeData;
+this.defaultData = defaultData;`, context, { filename: "01-core.js" });
+  context.Store = { data: context.defaultData() };
+  vm.runInContext(`${fs.readFileSync("scripts/05-sync.js", "utf8")}
+this.Sync = Sync;`, context, { filename: "05-sync.js" });
+
+  return { context, storage, timers, saves };
+}
+
 function buildBudgetData(ctx) {
   return ctx.normalizeData({
     profile: { theme: "dark" },
@@ -240,10 +344,42 @@ function testBudgetMathSyncAndBackup(ctx) {
   assert(addedDebt?.type === "expense" && addedDebt?.flowKind === "debt" && addedDebt?.categoryId === "exp_debt", "Template selection must add operation to the clicked budget group", addedDebt);
 }
 
+async function testSyncKeepsPendingFollowUpQueued() {
+  const { context, timers, saves } = loadSyncContext();
+  const firstPending = {
+    login: "qa",
+    token: "token",
+    updatedAt: "2026-06-01T10:00:00.000Z",
+    data: context.normalizeData({ profile: { theme: "dark" } })
+  };
+  const followUpPending = {
+    login: "qa",
+    token: "token",
+    updatedAt: "2026-06-01T10:00:01.000Z",
+    data: context.normalizeData({ profile: { theme: "light" } })
+  };
+
+  context.Storage.savePending(firstPending);
+  context.Api.save = async (login, token, data) => {
+    saves.push({ login, token, data });
+    context.Storage.savePending(followUpPending);
+  };
+
+  await context.Sync.processQueue();
+
+  assert(saves.length === 1, "Sync must save the first queued change", saves);
+  assert(context.Storage.loadPending()?.updatedAt === followUpPending.updatedAt, "Newer queued change must remain pending", context.Storage.loadPending());
+  assert(context.Sync.status === "syncing", "Sync status must not turn green while a newer change is still queued", {
+    status: context.Sync.status
+  });
+  assert(timers.some((timer) => timer.delay === 120), "Sync must schedule a follow-up send for newer pending data", timers);
+}
+
 async function main() {
   const { context, consoleLines } = loadAppContext();
   await testFriendlyMessagesAndTechnicalLogs(context, consoleLines);
   testBudgetMathSyncAndBackup(context);
+  await testSyncKeepsPendingFollowUpQueued();
   console.log(JSON.stringify({
     ok: true,
     checks: [
@@ -252,7 +388,8 @@ async function main() {
       "sync-merge-manual-month-start",
       "backup-roundtrip",
       "budget-month-carryover",
-      "template-target-bucket"
+      "template-target-bucket",
+      "sync-follow-up-pending"
     ]
   }, null, 2));
 }

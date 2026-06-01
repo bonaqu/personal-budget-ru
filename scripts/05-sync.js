@@ -121,7 +121,9 @@ const Sync = {
       }
       await Api.save(pending.login, pending.token, pending.data);
       const latest = Storage.loadPending();
-      if (latest?.updatedAt === pending.updatedAt) {
+      const savedCurrentPending = latest?.login === pending.login && latest?.updatedAt === pending.updatedAt;
+      const hasQueuedFollowUp = latest?.login === pending.login && !savedCurrentPending;
+      if (savedCurrentPending) {
         Storage.clearPending();
       }
       Auth.touchSession();
@@ -130,7 +132,13 @@ const Sync = {
       this.lastSyncedAt = Utils.nowISO();
       Storage.saveLastSync(Auth.getLogin(), this.lastSyncedAt);
       this.lastError = "";
-      this.status = "synced";
+      if (hasQueuedFollowUp) {
+        this.status = "syncing";
+        clearTimeout(this.timer);
+        this.timer = setTimeout(() => this.processQueue(), 120);
+      } else {
+        this.status = "synced";
+      }
     } catch (error) {
       this.lastError = Api.getFriendlyMessage(error, "Не удалось синхронизировать изменения");
       if (Api.isAuthSessionError(error)) {

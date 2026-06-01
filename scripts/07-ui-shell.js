@@ -1052,15 +1052,22 @@ Object.assign(UI, {
       );
       return;
     }
+    if (hasPending) {
+      dot.classList.add("is-syncing");
+      applySyncCopy(
+        `Аккаунт: ${login}`,
+        "Есть изменения на этом устройстве",
+        navigator.onLine
+          ? (lastSentMeta ? `${lastSentMeta} · Отправляем в облако автоматически` : "Отправляем в облако автоматически")
+          : "Отправим в облако, когда появится интернет"
+      );
+      return;
+    }
     dot.classList.add("is-synced");
     applySyncCopy(
       `Аккаунт: ${login}`,
-      hasPending
-        ? "Есть изменения на устройстве, они ждут отправки"
-        : "Все синхронизировано",
-      hasPending
-        ? (lastSentMeta || "Отправка начнется при следующей синхронизации")
-        : (lastSentMeta || "Облако подключено и готово")
+      "Все синхронизировано",
+      lastSentMeta || "Облако подключено и готово"
     );
   },
 
