@@ -808,8 +808,19 @@ function mergeMonthMeta(remoteMeta, localMeta) {
   if (!remoteMeta && !localMeta) {
     return normalizeMonthMeta();
   }
+  if (!remoteMeta) {
+    return normalizeMonthMeta(localMeta);
+  }
+  if (!localMeta) {
+    return normalizeMonthMeta(remoteMeta);
+  }
   const remote = normalizeMonthMeta(remoteMeta);
   const local = normalizeMonthMeta(localMeta);
+  const remoteHasManualValue = Boolean(remote.manualStart) || Utils.roundMoney(remote.start || 0) !== 0;
+  const localHasManualValue = Boolean(local.manualStart) || Utils.roundMoney(local.start || 0) !== 0;
+  if (remoteHasManualValue !== localHasManualValue) {
+    return remoteHasManualValue ? remote : local;
+  }
   return recordTimestamp({ updatedAt: local.updatedAt }) >= recordTimestamp({ updatedAt: remote.updatedAt })
     ? local
     : remote;
@@ -941,13 +952,23 @@ function normalizeTemplate(raw, categories) {
   if (!raw || typeof raw !== "object") {
     return null;
   }
-  const type = raw.type === "income" ? "income" : "expense";
+  const rawType = raw.type === "income" ? "income" : "expense";
+  const rawFlowKind = raw.flowKind === "debt" || raw.flowKind === "recurring" ? raw.flowKind : "standard";
+  const hasExplicitBucket = raw.bucket === "income" || raw.bucket === "debt" || raw.bucket === "recurring";
+  const bucket = normalizeTemplateBucket(raw.bucket, rawType, rawFlowKind);
+  const type = hasExplicitBucket
+    ? (bucket === "income" ? "income" : "expense")
+    : rawType;
+  const flowKind = type === "income"
+    ? "standard"
+    : (hasExplicitBucket ? (bucket === "debt" ? "debt" : "recurring") : rawFlowKind);
   const desc = String(raw.desc ?? raw.description ?? "").trim().slice(0, 180);
   if (!desc) {
     return null;
   }
   let categoryId = String(raw.categoryId ?? "").trim();
-  if (!categoryId) {
+  const category = categoryId ? findCategory(categories, categoryId) : null;
+  if (!category || category.type !== type) {
     categoryId = findCategoryIdByName(categories, type, legacyCategoryName(raw));
   }
   if (!categoryId) {
@@ -959,8 +980,8 @@ function normalizeTemplate(raw, categories) {
     amount: Math.max(0, Utils.roundMoney(Utils.safeNumber(raw.amount))),
     type,
     categoryId,
-    flowKind: raw.flowKind === "debt" || raw.flowKind === "recurring" ? raw.flowKind : "standard",
-    bucket: normalizeTemplateBucket(raw.bucket, type, raw.flowKind),
+    flowKind,
+    bucket,
     createdAt: raw.createdAt || Utils.nowISO(),
     updatedAt: raw.updatedAt || raw.createdAt || Utils.nowISO()
   };

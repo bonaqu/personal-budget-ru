@@ -987,7 +987,7 @@ const App = {
         ? UI.pickerState.kind.replace("templates-", "")
         : "recurring";
       const templateMeta = getTemplateBucketMeta(templateBucket);
-      Store.applyTemplateSelection(ids);
+      Store.applyTemplateSelection(ids, templateBucket);
       UI.toast(`${templateMeta.title} добавлены в бюджет`, "success");
     }
     UI.closeModal("pickerModal");

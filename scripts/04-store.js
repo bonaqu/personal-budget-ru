@@ -1331,7 +1331,7 @@ const Store = {
     });
   },
 
-  applyTemplateSelection(ids) {
+  applyTemplateSelection(ids, targetBucket = null) {
     const today = new Date();
     const targetDate = this.viewMonth === Utils.monthKey(today)
       ? Utils.todayISO()
@@ -1346,13 +1346,14 @@ const Store = {
         if (!item) {
           return;
         }
-        const bucket = normalizeTemplateBucket(item.bucket, item.type, item.flowKind);
-        const type = item.type === "income" ? "income" : "expense";
+        const bucket = normalizeTemplateBucket(targetBucket || item.bucket, item.type, item.flowKind);
+        const type = bucket === "income" ? "income" : "expense";
         const flowKind = type === "income"
           ? "standard"
-          : (item.flowKind === "debt" || item.flowKind === "recurring" ? item.flowKind : "standard");
+          : (bucket === "debt" ? "debt" : "recurring");
         let categoryId = item.categoryId;
-        if (!findCategory(draft.settings.categories, categoryId)) {
+        const category = findCategory(draft.settings.categories, categoryId);
+        if (!category || category.type !== type) {
           categoryId = type === "income"
             ? this.getDefaultCategoryId("incomes")
             : bucket === "debt"
@@ -1360,6 +1361,9 @@ const Store = {
               : bucket === "recurring"
                 ? this.getDefaultCategoryId("recurring")
                 : this.getDefaultCategoryId("expenses");
+        }
+        if (type === "expense" && flowKind === "debt") {
+          categoryId = this.getDefaultCategoryId("debts");
         }
         draft.transactions.push({
           id: Utils.uid("tx"),
