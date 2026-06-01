@@ -503,7 +503,7 @@ const App = {
       }
       UI.markAuthFieldInvalid(passwordField);
       UI.shakeAuthCard(source);
-      const message = Api.getMessage(error, mode === "login" ? "Не удалось войти" : "Не удалось создать аккаунт");
+      const message = Api.getFriendlyMessage(error, mode === "login" ? "Не удалось войти" : "Не удалось создать аккаунт");
       UI.setAuthStatus(source, message, "error");
       Diagnostics.report("auth:failed", {
         source,

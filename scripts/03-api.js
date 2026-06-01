@@ -16,6 +16,38 @@ const Api = {
     return fallback;
   },
 
+  getFriendlyMessage(error, fallback = "Не удалось связаться с сервером") {
+    const code = String(error?.code || "");
+    const status = Number(error?.status || 0);
+    const serverCode = String(error?.payload?.code || "");
+
+    if (code === "OFFLINE") {
+      return "Нет подключения к интернету. Проверьте сеть и попробуйте снова.";
+    }
+    if (code === "TIMEOUT") {
+      return "API не ответил вовремя. Попробуйте еще раз через несколько секунд.";
+    }
+    if (code === "NETWORK_UNAVAILABLE") {
+      return "Браузер не смог подключиться к API. Обычно причина в адресе Workers, CORS или сетевой блокировке.";
+    }
+    if (code === "HTTP_401" || serverCode === "INVALID_CREDENTIALS") {
+      return "Неверный логин или пароль.";
+    }
+    if (code === "HTTP_403") {
+      return "Нет доступа к данным аккаунта. Войдите заново или проверьте аккаунт.";
+    }
+    if (code === "HTTP_404") {
+      return "API не нашел нужный маршрут. Проверьте, что опубликована актуальная версия Workers.";
+    }
+    if (code === "HTTP_429") {
+      return "Слишком много попыток. Подождите немного и попробуйте снова.";
+    }
+    if (status >= 500 || ["HTTP_500", "HTTP_502", "HTTP_503", "HTTP_504"].includes(code)) {
+      return "API временно вернул ошибку. Данные на устройстве сохранены, попробуйте повторить позже.";
+    }
+    return this.getMessage(error, fallback);
+  },
+
   messageForStatus(status, serverMessage = "") {
     if (serverMessage) {
       return serverMessage;
@@ -100,9 +132,11 @@ const Api = {
     }
 
     const normalized = error?.name === "AbortError"
-      ? this.createError("TIMEOUT", "Сервер не ответил вовремя", { endpoint, method })
+      ? this.createError("TIMEOUT", "API не ответил вовремя. Попробуйте еще раз через несколько секунд.", { endpoint, method })
       : error instanceof TypeError
-        ? this.createError("NETWORK_UNAVAILABLE", "Нет соединения с интернетом или сервер недоступен", { endpoint, method })
+        ? (typeof navigator !== "undefined" && navigator.onLine === false
+          ? this.createError("OFFLINE", "Нет подключения к интернету. Проверьте сеть и попробуйте снова.", { endpoint, method })
+          : this.createError("NETWORK_UNAVAILABLE", "Браузер не смог подключиться к API. Обычно причина в адресе Workers, CORS или сетевой блокировке.", { endpoint, method }))
         : this.createError("REQUEST_FAILED", this.getMessage(error), {
           endpoint,
           method,
@@ -153,7 +187,7 @@ const Api = {
     return {
       ok: false,
       code: lastError?.code || "NETWORK_UNAVAILABLE",
-      message: this.getMessage(lastError, "Сервис авторизации недоступен")
+      message: this.getFriendlyMessage(lastError, "Сервис авторизации недоступен")
     };
   },
 
@@ -207,6 +241,7 @@ const Api = {
     const code = error?.code || "";
     const serverCode = String(error?.payload?.code || "");
     return code === "TIMEOUT" ||
+      code === "OFFLINE" ||
       code === "NETWORK_UNAVAILABLE" ||
       code === "REQUEST_FAILED" ||
       code === "HTTP_408" ||

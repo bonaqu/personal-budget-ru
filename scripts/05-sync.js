@@ -31,7 +31,7 @@ const Sync = {
       }
     });
     window.addEventListener("offline", () => {
-      this.lastError = "РќРµС‚ СЃРѕРµРґРёРЅРµРЅРёСЏ СЃ РёРЅС‚РµСЂРЅРµС‚РѕРј";
+      this.lastError = "Нет подключения к интернету";
       this.status = Auth.isAuthenticated() ? "offline" : "local";
       UI.renderSyncState();
     });
@@ -99,7 +99,7 @@ const Sync = {
       return;
     }
     if (!navigator.onLine) {
-      this.lastError = "РќРµС‚ СЃРѕРµРґРёРЅРµРЅРёСЏ СЃ РёРЅС‚РµСЂРЅРµС‚РѕРј";
+      this.lastError = "Нет подключения к интернету";
       this.status = "offline";
       UI.renderSyncState();
       return;
@@ -132,20 +132,20 @@ const Sync = {
       this.lastError = "";
       this.status = "synced";
     } catch (error) {
-      this.lastError = Api.getMessage(error, "РќРµ СѓРґР°Р»РѕСЃСЊ СЃРёРЅС…СЂРѕРЅРёР·РёСЂРѕРІР°С‚СЊ РёР·РјРµРЅРµРЅРёСЏ");
+      this.lastError = Api.getFriendlyMessage(error, "Не удалось синхронизировать изменения");
       if (Api.isAuthSessionError(error)) {
         let sessionStillValid = false;
         try {
           sessionStillValid = await Api.confirmSession(pending.login, pending.token);
         } catch (confirmError) {
-          this.lastError = Api.getMessage(confirmError, this.lastError);
+          this.lastError = Api.getFriendlyMessage(confirmError, this.lastError);
           Diagnostics.report("sync:session-confirm-failed", {
             code: confirmError?.code || null,
             message: this.lastError
           }, String(confirmError?.code || "").startsWith("HTTP_4") ? "warning" : "error");
           if (Api.isRetryable(confirmError)) {
             this.scheduleRetry();
-            this.status = confirmError?.code === "NETWORK_UNAVAILABLE" || confirmError?.code === "TIMEOUT"
+            this.status = ["OFFLINE", "NETWORK_UNAVAILABLE", "TIMEOUT"].includes(confirmError?.code)
               ? "offline"
               : "error";
             return;
@@ -153,7 +153,7 @@ const Sync = {
         }
 
         if (sessionStillValid) {
-          this.lastError = "РћР±Р»Р°РєРѕ РµС‰Рµ РїРѕРґС‚РІРµСЂР¶РґР°РµС‚ РЅРѕРІСѓСЋ СЃРµСЃСЃРёСЋ. РџРѕРІС‚РѕСЂСЏРµРј СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёСЋ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё.";
+          this.lastError = "Облако еще подтверждает новую сессию. Повторяем синхронизацию автоматически.";
           this.status = "syncing";
           Diagnostics.report("sync:session-confirmed", {
             login: pending.login,
@@ -181,7 +181,7 @@ const Sync = {
         UI.renderSyncState();
         if (typeof App !== "undefined" && typeof App.handleRemoteSessionInvalid === "function") {
           App.handleRemoteSessionInvalid({
-            message: "РЎРµСЃСЃРёСЏ Р°РєРєР°СѓРЅС‚Р° РёСЃС‚РµРєР»Р° РёР»Рё Р±РѕР»СЊС€Рµ РЅРµ РґРµР№СЃС‚РІСѓРµС‚. Р’РѕР№РґРёС‚Рµ СЃРЅРѕРІР°, С‡С‚РѕР±С‹ РїСЂРѕРґРѕР»Р¶РёС‚СЊ СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёСЋ."
+            message: "Сессия аккаунта истекла или больше не действует. Войдите снова, чтобы продолжить синхронизацию."
           });
         }
         return;
@@ -194,7 +194,7 @@ const Sync = {
       if (Api.isRetryable(error)) {
         this.scheduleRetry();
       }
-      this.status = error?.code === "NETWORK_UNAVAILABLE" || error?.code === "TIMEOUT" ? "offline" : "error";
+      this.status = ["OFFLINE", "NETWORK_UNAVAILABLE", "TIMEOUT"].includes(error?.code) ? "offline" : "error";
     } finally {
       this.isSyncing = false;
       UI.renderSyncState();
