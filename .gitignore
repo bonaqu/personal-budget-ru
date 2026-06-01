@@ -15,6 +15,7 @@ output/
 node_modules/
 playwright-report/
 test-results/
+tests/
 _serve_out.txt
 _serve_err.txt
 _*.py

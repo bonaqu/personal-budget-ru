@@ -4,8 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 4317",
-    "preview": "vite preview --host 127.0.0.1 --port 4317",
-    "test:logic": "node tests/budget-sync-backup-regression.mjs"
+    "preview": "vite preview --host 127.0.0.1 --port 4317"
   },
   "devDependencies": {
     "vite": "^7.1.0"
