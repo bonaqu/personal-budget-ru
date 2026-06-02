@@ -997,6 +997,34 @@ function normalizeTemplate(raw, categories) {
   };
 }
 
+function normalizeFavorite(raw, categories) {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+  const desc = String(raw.desc ?? raw.description ?? "").trim().slice(0, 180);
+  if (!desc) {
+    return null;
+  }
+  let categoryId = String(raw.categoryId ?? "").trim();
+  const category = categoryId ? findCategory(categories, categoryId) : null;
+  if (!category || category.type !== "expense") {
+    categoryId = findCategoryIdByName(categories, "expense", legacyCategoryName(raw));
+  }
+  if (!categoryId) {
+    categoryId = "exp_other";
+  }
+  return {
+    id: String(raw.id ?? Utils.uid("fav")),
+    desc,
+    amount: Math.max(0, Utils.roundMoney(Utils.safeNumber(raw.amount))),
+    type: "expense",
+    categoryId,
+    flowKind: "standard",
+    createdAt: raw.createdAt || Utils.nowISO(),
+    updatedAt: raw.updatedAt || raw.createdAt || Utils.nowISO()
+  };
+}
+
 function normalizeWishlistItem(raw, fallbackPosition = null) {
   if (!raw || typeof raw !== "object") {
     return null;
@@ -1069,6 +1097,16 @@ function buildTemplateSemanticKey(item, categories) {
     normalizeTemplateBucket(item?.bucket, item?.type, item?.flowKind),
     item?.type || "",
     item?.flowKind || "standard",
+    Utils.roundMoney(item?.amount || 0),
+    Utils.normalizeLookupKey(item?.desc),
+    Utils.normalizeLookupKey(category?.name || item?.categoryId || "")
+  ].join("|");
+}
+
+function buildFavoriteSemanticKey(item, categories) {
+  const category = findCategory(categories, item?.categoryId);
+  return [
+    "favorite",
     Utils.roundMoney(item?.amount || 0),
     Utils.normalizeLookupKey(item?.desc),
     Utils.normalizeLookupKey(category?.name || item?.categoryId || "")
@@ -1608,9 +1646,9 @@ function normalizeData(raw) {
   );
   const favorites = dedupeSemanticList(
     Array.isArray(raw?.settings?.favorites)
-      ? raw.settings.favorites.map((item) => normalizeTemplate(item, categories)).filter(Boolean)
+      ? raw.settings.favorites.map((item) => normalizeFavorite(item, categories)).filter(Boolean)
       : [],
-    (item) => buildTemplateSemanticKey(item, categories)
+    (item) => buildFavoriteSemanticKey(item, categories)
   );
   const wishlist = dedupeSemanticList(
     Array.isArray(raw?.settings?.wishlist)
@@ -1691,7 +1729,7 @@ function mergeData(remoteRaw, localRaw) {
       ),
       favorites: dedupeSemanticList(
         [...remote.settings.favorites, ...local.settings.favorites],
-        (item) => buildTemplateSemanticKey(item, categories)
+        (item) => buildFavoriteSemanticKey(item, categories)
       ),
       wishlist: dedupeSemanticList(
         [...remote.settings.wishlist, ...local.settings.wishlist],
