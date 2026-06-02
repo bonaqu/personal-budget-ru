@@ -1523,6 +1523,17 @@ const UI = {
       }
     });
 
+    document.addEventListener("input", (event) => {
+      const field = event.target.closest("[data-journal-field]");
+      if (!field) {
+        return;
+      }
+      const kind = field.dataset.journalField;
+      if (["amount", "description", "wish-amount", "wish-desc"].includes(kind)) {
+        App.handleJournalField(field);
+      }
+    });
+
     document.addEventListener("change", (event) => {
       if (event.target.closest("#typeSwitch")) {
         this.renderFormCategories();
