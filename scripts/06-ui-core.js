@@ -1232,6 +1232,7 @@ const UI = {
     on("prevMonthBtn", "click", () => App.shiftMonth(-1));
     on("nextMonthBtn", "click", () => App.shiftMonth(1));
     on("todayBtn", "click", () => App.goToCurrentMonth());
+    on("monthStartInput", "input", (event) => App.updateMonthStart(event.target.value, { render: false }));
     on("monthStartInput", "change", (event) => App.updateMonthStart(event.target.value));
     on("manualStartCheck", "change", (event) => App.toggleManualMonthStart(event.target.checked));
     on("editTransactionForm", "submit", (event) => {

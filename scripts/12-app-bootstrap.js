@@ -762,11 +762,13 @@ const App = {
     UI.renderApp();
   },
 
-  updateMonthStart(value) {
+  updateMonthStart(value, { render = true } = {}) {
     Store.saveMonthMeta(Store.viewMonth, {
       start: Utils.parseSignedAmount(value)
     });
-    UI.renderApp();
+    if (render) {
+      UI.renderApp();
+    }
   },
 
   toggleManualMonthStart(enabled) {
