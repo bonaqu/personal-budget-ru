@@ -182,6 +182,14 @@ const Store = {
     this.historyFuture = [];
   },
 
+  commitHistorySnapshot(snapshot) {
+    if (!snapshot || comparableDataSignature(snapshot.data) === comparableDataSignature(this.data)) {
+      return false;
+    }
+    this.pushHistory(snapshot);
+    return true;
+  },
+
   resetHistory() {
     this.historyPast = [];
     this.historyFuture = [];
@@ -228,7 +236,7 @@ const Store = {
     return this.restoreSnapshot(next, { queueSync: Auth.isAuthenticated() });
   },
 
-  mutate(mutator, { queueSync = true } = {}) {
+  mutate(mutator, { queueSync = true, render = true, recordHistory = true } = {}) {
     const before = this.captureSnapshot();
     const draft = Utils.clone(this.data);
     mutator(draft);
@@ -239,13 +247,16 @@ const Store = {
     this.resetDerivedCaches();
     this.rebuildSearchIndex();
     this.saveLocal();
-    if (changed) {
+    if (changed && recordHistory) {
       this.pushHistory(before);
     }
     if (Auth.isAuthenticated() && queueSync) {
       Sync.queueSync();
     }
-    UI.renderDataState();
+    if (render) {
+      UI.renderDataState();
+    }
+    return changed;
   },
 
   getMonthKeys() {
@@ -375,8 +386,8 @@ const Store = {
     return this.data.months[monthKey] || normalizeMonthMeta();
   },
 
-  saveMonthMeta(monthKey, patch = {}) {
-    this.mutate((draft) => {
+  saveMonthMeta(monthKey, patch = {}, options = {}) {
+    return this.mutate((draft) => {
       ensureDefaultMonthMeta(draft.months, monthKey);
       draft.months[monthKey] = {
         ...draft.months[monthKey],
@@ -385,7 +396,7 @@ const Store = {
         manualStart: Boolean(patch.manualStart ?? draft.months[monthKey].manualStart),
         updatedAt: Utils.nowISO()
       };
-    });
+    }, options);
   },
 
   getFilteredTransactions() {
@@ -1000,8 +1011,8 @@ const Store = {
     });
   },
 
-  updateTransactionInline(transactionId, patch) {
-    this.mutate((draft) => {
+  updateTransactionInline(transactionId, patch, options = {}) {
+    return this.mutate((draft) => {
       const transaction = draft.transactions.find((item) => item.id === transactionId);
       if (!transaction) {
         return;
@@ -1028,7 +1039,7 @@ const Store = {
         transaction.categoryId = this.getDefaultCategoryId("debts");
       }
       transaction.updatedAt = Utils.nowISO();
-    });
+    }, options);
   },
 
   addFavoriteFromTransaction(transactionId) {
@@ -1414,8 +1425,8 @@ const Store = {
     });
   },
 
-  updateWishlistItem(itemId, patch) {
-    this.mutate((draft) => {
+  updateWishlistItem(itemId, patch, options = {}) {
+    return this.mutate((draft) => {
       const item = draft.settings.wishlist.find((entry) => entry.id === itemId);
       if (!item) {
         return;
@@ -1429,7 +1440,7 @@ const Store = {
       if (Object.prototype.hasOwnProperty.call(patch, "position")) {
         item.position = Number(patch.position);
       }
-    });
+    }, options);
   },
 
   deleteWishlistItem(itemId) {

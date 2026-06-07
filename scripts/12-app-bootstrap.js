@@ -1,4 +1,7 @@
 const App = {
+  journalFieldEdits: new Map(),
+  monthStartEditSnapshot: null,
+
   runAfterNextPaint(callback, frames = 2) {
     if (typeof callback !== "function") {
       return;
@@ -762,12 +765,42 @@ const App = {
     UI.renderApp();
   },
 
+  refreshBudgetDerivedState() {
+    UI.renderSyncState();
+    UI.renderHistoryState();
+    if (Store.activeTab !== "overviewTab") {
+      return;
+    }
+    UI.renderSummary();
+    UI.renderMonthPlan();
+    UI.renderJournalSummary();
+    UI.renderTransactions();
+    UI.renderBudgetLimits();
+    if (typeof window.Chart !== "undefined") {
+      UI.renderMonthBalanceChart();
+    }
+    App.runAfterNextPaint(() => UI.syncBudgetWorkspaceLayout(), 1);
+  },
+
   updateMonthStart(value, { render = true } = {}) {
-    Store.saveMonthMeta(Store.viewMonth, {
-      start: Utils.parseSignedAmount(value)
-    });
+    if (!render && !this.monthStartEditSnapshot) {
+      this.monthStartEditSnapshot = Store.captureSnapshot();
+    }
+    const hasLiveEdit = Boolean(this.monthStartEditSnapshot);
+    Store.saveMonthMeta(
+      Store.viewMonth,
+      { start: Utils.parseSignedAmount(value) },
+      {
+        render: false,
+        recordHistory: !hasLiveEdit
+      }
+    );
     if (render) {
-      UI.renderApp();
+      if (this.monthStartEditSnapshot) {
+        Store.commitHistorySnapshot(this.monthStartEditSnapshot);
+        this.monthStartEditSnapshot = null;
+      }
+      this.refreshBudgetDerivedState();
     }
   },
 
@@ -1095,27 +1128,73 @@ const App = {
     }
   },
 
-  handleJournalField(field) {
+  getJournalFieldEditKey(field) {
+    const row = field?.closest?.("[data-entry-id]");
+    const kind = field?.dataset?.journalField || "";
+    return row?.dataset?.entryId && kind ? `${row.dataset.entryId}:${kind}` : "";
+  },
+
+  beginJournalFieldEdit(field) {
+    const key = this.getJournalFieldEditKey(field);
+    if (key && !this.journalFieldEdits.has(key)) {
+      this.journalFieldEdits.set(key, Store.captureSnapshot());
+    }
+    return key;
+  },
+
+  hasJournalFieldEdit(field) {
+    const key = this.getJournalFieldEditKey(field);
+    return Boolean(key && this.journalFieldEdits.has(key));
+  },
+
+  updateJournalFieldDraft(field) {
+    if (field instanceof HTMLTextAreaElement) {
+      field.dataset.fulltext = field.value;
+    }
+    this.beginJournalFieldEdit(field);
+    this.handleJournalField(field, { render: false, recordHistory: false });
+  },
+
+  commitJournalFieldEdit(field) {
+    const key = this.getJournalFieldEditKey(field);
+    const snapshot = (key ? this.journalFieldEdits.get(key) : null) || Store.captureSnapshot();
+    const sectionRoot = field?.closest?.("[data-entry-id]")?.parentElement;
+    if (field instanceof HTMLTextAreaElement) {
+      field.dataset.fulltext = field.value;
+    }
+    const changed = this.handleJournalField(field, { render: false, recordHistory: false });
+    if (key) {
+      this.journalFieldEdits.delete(key);
+    }
+    if (sectionRoot instanceof HTMLElement) {
+      sectionRoot.removeAttribute("data-render-signature");
+    }
+    Store.commitHistorySnapshot(snapshot);
+    this.refreshBudgetDerivedState();
+    return changed;
+  },
+
+  handleJournalField(field, options = {}) {
     const row = field.closest("[data-entry-id]");
     if (!row) {
-      return;
+      return false;
     }
     const itemId = row.dataset.entryId;
     const section = row.dataset.section;
     const kind = field.dataset.journalField;
     if (section === "wishlist") {
       if (kind === "wish-desc") {
-        Store.updateWishlistItem(itemId, { desc: field.dataset.fulltext || field.value });
+        return Store.updateWishlistItem(itemId, { desc: field.dataset.fulltext || field.value }, options);
       }
       if (kind === "wish-amount") {
-        Store.updateWishlistItem(itemId, { amount: Math.max(0, Utils.parseAmount(field.value)) });
+        return Store.updateWishlistItem(itemId, { amount: Math.max(0, Utils.parseAmount(field.value)) }, options);
       }
-      return;
+      return false;
     }
 
     const transaction = Store.data.transactions.find((item) => item.id === itemId);
     if (!transaction) {
-      return;
+      return false;
     }
 
     if (kind === "day") {
@@ -1123,8 +1202,7 @@ const App = {
       const day = Utils.clampDay(year, month - 1, field.value);
       const nextDate = `${transaction.date.slice(0, 8)}${String(day).padStart(2, "0")}`;
       field.value = String(day);
-      Store.updateTransactionInline(itemId, { date: nextDate });
-      return;
+      return Store.updateTransactionInline(itemId, { date: nextDate }, options);
     }
     if (kind === "date" && Utils.isISODate(field.value)) {
       const nextDate = field.value;
@@ -1132,20 +1210,18 @@ const App = {
       if (dayInput instanceof HTMLInputElement) {
         dayInput.value = String(Number(nextDate.slice(-2)));
       }
-      Store.updateTransactionInline(itemId, { date: nextDate });
-      return;
+      return Store.updateTransactionInline(itemId, { date: nextDate }, options);
     }
     if (kind === "amount") {
-      Store.updateTransactionInline(itemId, { amount: Math.max(0, Utils.parseAmount(field.value)) });
-      return;
+      return Store.updateTransactionInline(itemId, { amount: Math.max(0, Utils.parseAmount(field.value)) }, options);
     }
     if (kind === "description") {
-      Store.updateTransactionInline(itemId, { description: field.dataset.fulltext || field.value });
-      return;
+      return Store.updateTransactionInline(itemId, { description: field.dataset.fulltext || field.value }, options);
     }
     if (kind === "categoryId" && Store.getCategory(field.value)) {
-      Store.updateTransactionInline(itemId, { categoryId: field.value });
+      return Store.updateTransactionInline(itemId, { categoryId: field.value }, options);
     }
+    return false;
   },
 
   handleSettingsAction(button) {
@@ -1545,25 +1621,44 @@ const App = {
 
   exportBackup() {
     UI.clearBackupStatus();
-    const backup = Store.exportLegacyBackup();
-    const sourceSummary = summarizeNormalizedData(Store.data);
-    const roundtripSummary = summarizeNormalizedData(normalizeData(backup));
-    const roundtripDiff = diffDataSummaries(sourceSummary, roundtripSummary);
-    Diagnostics.report("export-backup:roundtrip", {
-      source: sourceSummary,
-      roundtrip: roundtripSummary,
-      diff: roundtripDiff
-    });
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    const profile = Auth.getLogin() || "local";
-    link.download = `budget_${profile}_backup_${Utils.todayISO()}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    UI.setBackupStatus("Резервная копия готова. Браузер уже начал скачивание.", "success");
-    UI.toast("Резервная копия готова", "success");
+    try {
+      const backup = Store.exportLegacyBackup();
+      const normalizedRoundtrip = normalizeData(backup);
+      const sourceSummary = summarizeNormalizedData(Store.data);
+      const roundtripSummary = summarizeNormalizedData(normalizedRoundtrip);
+      const roundtripDiff = diffDataSummaries(sourceSummary, roundtripSummary);
+      const signatureEqual = comparableDataSignature(Store.data) === comparableDataSignature(normalizedRoundtrip);
+      Diagnostics.report("export-backup:roundtrip", {
+        source: sourceSummary,
+        roundtrip: roundtripSummary,
+        diff: roundtripDiff,
+        signatureEqual
+      }, signatureEqual ? "info" : "error");
+      if (!signatureEqual) {
+        throw new Error("Не удалось проверить целостность резервной копии. Данные не скачаны.");
+      }
+
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const profile = Auth.getLogin() || "local";
+      link.download = `budget_${profile}_backup_${Utils.todayISO()}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      UI.setBackupStatus("Резервная копия проверена и готова. Браузер уже начал скачивание.", "success");
+      UI.toast("Резервная копия готова", "success");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Не удалось подготовить резервную копию.";
+      Diagnostics.report("export-backup:failed", {
+        message,
+        stack: error instanceof Error ? error.stack : null
+      }, "error");
+      UI.setBackupStatus(message, "error");
+      UI.toast(message, "error");
+    }
   },
 
   getBackupErrorMessage(error) {
@@ -1579,6 +1674,18 @@ const App = {
       return;
     }
     UI.clearBackupStatus();
+    if (file.size > CONFIG.MAX_BACKUP_BYTES) {
+      const message = "Файл резервной копии слишком большой. Выберите JSON-файл размером до 8 МБ.";
+      Diagnostics.report("import-backup:file-too-large", {
+        name: file.name,
+        size: file.size,
+        maxSize: CONFIG.MAX_BACKUP_BYTES
+      }, "warning");
+      UI.setBackupStatus(message, "error");
+      UI.toast(message, "error");
+      event.target.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onerror = () => {
       Diagnostics.report("import-backup:file-read-error", {

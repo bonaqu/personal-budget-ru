@@ -10,6 +10,7 @@ const CONFIG = {
   BUDGET_FILTERS_KEY: "budget_flow_ru_budget_filters_collapsed_v1",
   JOURNAL_SORT_KEY: "budget_flow_ru_journal_sort_v3",
   APP_VERSION: 3,
+  MAX_BACKUP_BYTES: 8 * 1024 * 1024,
   SESSION_IDLE_MINUTES: 30,
   SESSION_ACTIVITY_THROTTLE_MS: 15000
 };
@@ -1559,7 +1560,7 @@ function migrateLegacyBackup(raw) {
     ? raw.settings.templates.map((item) => normalizeTemplate(item, categories)).filter(Boolean)
     : [];
   next.settings.favorites = Array.isArray(raw?.settings?.favorites)
-    ? raw.settings.favorites.map((item) => normalizeTemplate(item, categories)).filter(Boolean)
+    ? raw.settings.favorites.map((item) => normalizeFavorite(item, categories)).filter(Boolean)
     : [];
   next.settings.wishlist = Array.isArray(raw?.wishlist)
     ? raw.wishlist.map((item, index) => normalizeWishlistItem(item, index + 1)).filter(Boolean)

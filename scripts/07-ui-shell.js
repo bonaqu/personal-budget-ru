@@ -440,8 +440,8 @@ Object.assign(UI, {
         return;
       }
       textarea.dataset.fulltext = textarea.value;
-      if (textarea.dataset.journalField) {
-        App.handleJournalField(textarea);
+      if (textarea.dataset.journalField && App.hasJournalFieldEdit(textarea)) {
+        App.commitJournalFieldEdit(textarea);
       }
       if (textarea.dataset.settingField) {
         App.handleSettingsField(textarea);

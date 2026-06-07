@@ -484,12 +484,17 @@ Object.assign(UI, {
       root.dataset.renderSignature = sectionSignature;
     });
 
-    const summary = Utils.$("journalMonthSummary");
-    if (summary) {
-      const stats = Store.statsForMonth(Store.viewMonth);
-      summary.textContent = `${stats.operations} операций • ${Utils.formatMoney(stats.totals.income)} / ${Utils.formatMoney(stats.totals.expense)}`;
-    }
+    this.renderJournalSummary();
     this.renderJournalSortButtons();
+  },
+
+  renderJournalSummary() {
+    const summary = Utils.$("journalMonthSummary");
+    if (!summary) {
+      return;
+    }
+    const stats = Store.statsForMonth(Store.viewMonth);
+    summary.textContent = `${stats.operations} операций • ${Utils.formatMoney(stats.totals.income)} / ${Utils.formatMoney(stats.totals.expense)}`;
   },
 
   renderJournalRow(section, transaction, options = {}) {

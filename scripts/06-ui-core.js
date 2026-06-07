@@ -626,7 +626,7 @@ const UI = {
     }
     const day = Utils.clampDay(this.budgetDayPadState.year, this.budgetDayPadState.monthIndex, value);
     field.value = String(day);
-    App.handleJournalField(field);
+    App.commitJournalFieldEdit(field);
     this.closeBudgetDayPad({ restoreFocus: true });
   },
 
@@ -757,7 +757,7 @@ const UI = {
     const wasOpen = this.budgetNumpadState.open;
     if (wasOpen && commit && field) {
       if (this.budgetNumpadState.source === "journal") {
-        App.handleJournalField(field);
+        App.commitJournalFieldEdit(field);
       } else {
         field.dispatchEvent(new Event("input", { bubbles: true }));
         field.dispatchEvent(new Event("change", { bubbles: true }));
@@ -1531,7 +1531,7 @@ const UI = {
       }
       const kind = field.dataset.journalField;
       if (["amount", "description", "wish-amount", "wish-desc"].includes(kind)) {
-        App.handleJournalField(field);
+        App.updateJournalFieldDraft(field);
       }
     });
 
@@ -1541,7 +1541,7 @@ const UI = {
       }
       const field = event.target.closest("[data-journal-field]");
       if (field) {
-        App.handleJournalField(field);
+        App.commitJournalFieldEdit(field);
       }
       const settingField = event.target.closest("[data-setting-field]");
       if (settingField) {
