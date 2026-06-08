@@ -43,15 +43,38 @@ Object.assign(UI, {
   },
 
   renderMonthNavigation() {
-    const isCurrentMonth = Store.viewMonth === Utils.monthKey(new Date());
-    const rawCurrentMonthName = new Intl.DateTimeFormat("ru-RU", { month: "long" }).format(new Date());
-    const currentMonthName = rawCurrentMonthName
-      ? `${rawCurrentMonthName.charAt(0).toLocaleUpperCase("ru-RU")}${rawCurrentMonthName.slice(1)}`
-      : Utils.monthLabel(Utils.monthKey(new Date()));
+    const currentMonthKey = Utils.monthKey(new Date());
+    const isCurrentMonth = Store.viewMonth === currentMonthKey;
+    const getMonthName = (monthKey) => {
+      const [year, month] = String(monthKey || "").split("-").map(Number);
+      const rawName = Number.isFinite(year) && Number.isFinite(month)
+        ? new Intl.DateTimeFormat("ru-RU", { month: "long" }).format(new Date(year, month - 1, 1))
+        : Utils.monthLabel(monthKey);
+      return rawName
+        ? `${rawName.charAt(0).toLocaleUpperCase("ru-RU")}${rawName.slice(1)}`
+        : Utils.monthLabel(monthKey);
+    };
+    const getShiftedMonthKey = (delta) => {
+      const [year, month] = Store.viewMonth.split("-").map(Number);
+      return Utils.monthKey(new Date(year, month - 1 + delta, 1));
+    };
+    const currentMonthName = getMonthName(currentMonthKey);
     this.setBudgetText("sidebarMonthLabel", Utils.monthLabel(Store.viewMonth));
+    const prevButton = Utils.$("prevMonthBtn");
+    const nextButton = Utils.$("nextMonthBtn");
     const todayButton = Utils.$("todayBtn");
     if (!todayButton) {
       return;
+    }
+    if (prevButton) {
+      const prevLabel = `Предыдущий месяц — ${getMonthName(getShiftedMonthKey(-1))}`;
+      prevButton.title = prevLabel;
+      prevButton.setAttribute("aria-label", prevLabel);
+    }
+    if (nextButton) {
+      const nextLabel = `Следующий месяц — ${getMonthName(getShiftedMonthKey(1))}`;
+      nextButton.title = nextLabel;
+      nextButton.setAttribute("aria-label", nextLabel);
     }
     todayButton.disabled = isCurrentMonth;
     todayButton.classList.toggle("is-current", isCurrentMonth);

@@ -4860,3 +4860,325 @@ body[data-theme="light"] :is(input, textarea)::placeholder {
   color: var(--text-soft);
   opacity: 0.86;
 }
+
+/* Theme hardening and denser budget rows */
+body[data-theme="dark"],
+body[data-theme="light"] {
+  color: var(--text-main) !important;
+  transition: background-color 0.25s ease !important;
+}
+
+body[data-theme="dark"] :is(
+  .app-shell,
+  .auth-screen,
+  .modal,
+  .modal__dialog,
+  .glass-card,
+  .panel,
+  .highlight-card,
+  .summary-card,
+  .entry-row,
+  .budget-side-panel,
+  .account-menu,
+  .mobile-quick-sheet,
+  .budget-numpad,
+  .budget-daypad
+),
+body[data-theme="light"] :is(
+  .app-shell,
+  .auth-screen,
+  .modal,
+  .modal__dialog,
+  .glass-card,
+  .panel,
+  .highlight-card,
+  .summary-card,
+  .entry-row,
+  .budget-side-panel,
+  .account-menu,
+  .mobile-quick-sheet,
+  .budget-numpad,
+  .budget-daypad
+) {
+  color: var(--text-main) !important;
+}
+
+body[data-theme="light"] :is(
+  .glass-card,
+  .modal__dialog,
+  .highlight-card,
+  .panel,
+  .month-table__row,
+  .category-item,
+  .transaction-card,
+  .insight-card,
+  .deep-stat,
+  .recurring-card,
+  .month-detail__card,
+  .account-menu__hero,
+  .account-menu__state,
+  .account-menu__fact,
+  .account-menu__hint,
+  .account-choice__card,
+  .payment-calendar--v2,
+  .payment-calendar-v2__rail,
+  .payment-calendar-v2__detail,
+  .forecast-v3-panel,
+  .settings-panel,
+  .quick-card,
+  .goal-card,
+  .picker-item,
+  .mobile-quick-sheet
+) {
+  border-color: rgb(var(--surface-border-rgb) / 0.14) !important;
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.82), transparent 44%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(244, 248, 253, 0.78)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 10px 24px rgba(22, 49, 82, 0.08) !important;
+}
+
+body[data-theme="light"] :is(
+  .entry-day-control,
+  .entry-amount-control,
+  .field-affix-control,
+  .entry-row .entry-field__control > input:not(.entry-control-aux),
+  .entry-row .compact-textarea,
+  .entry-row .entry-field__control--category,
+  .entry-row .category-trigger,
+  .category-trigger,
+  .auth-field__control,
+  .password-field__toggle,
+  .budget-jumpbar,
+  .budget-jumpbar__item,
+  .sidebar-month__nav-btn,
+  .sidebar-month__today-btn,
+  .budget-numpad__value,
+  .budget-numpad__key,
+  .budget-daypad__day,
+  .budget-daypad__today
+) {
+  color: var(--text-main) !important;
+  border-color: rgb(var(--surface-border-rgb) / 0.14) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(241, 246, 252, 0.92)),
+    var(--surface-field) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 0 rgba(22, 49, 82, 0.05) !important;
+}
+
+body[data-theme="light"] :is(
+  .entry-field__label,
+  .entry-field__label-text,
+  .field__label,
+  .eyebrow,
+  .mini-label,
+  .account-menu__fact span,
+  .summary-card span,
+  .summary-card small,
+  .month-balance-stat span,
+  .month-balance-stat small,
+  .month-trend-preview__item span,
+  .modal__subtext,
+  .backup-note
+) {
+  color: var(--text-soft) !important;
+}
+
+body[data-theme="light"] :is(
+  .modal__head h3,
+  .account-menu__identity-copy strong,
+  .summary-card strong,
+  .month-balance-stat strong,
+  .month-trend-preview__item strong,
+  .budget-side-panel__title h3,
+  .journal-section__head h4
+) {
+  color: var(--text-main) !important;
+}
+
+body[data-theme="light"] .account-menu__avatar {
+  color: #ffffff !important;
+  border-color: rgb(var(--info-rgb) / 0.24) !important;
+  background:
+    radial-gradient(circle at 25% 18%, rgba(255, 255, 255, 0.24), transparent 34%),
+    linear-gradient(145deg, var(--info), var(--success)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 10px 20px rgb(var(--info-rgb) / 0.16) !important;
+}
+
+body[data-theme="light"] .account-menu__status.is-synced {
+  color: var(--success) !important;
+  background: rgb(var(--success-rgb) / 0.12) !important;
+}
+
+body[data-theme="light"] .account-menu__status.is-syncing {
+  color: var(--info) !important;
+  background: rgb(var(--info-rgb) / 0.12) !important;
+}
+
+body[data-theme="light"] .account-menu__status.is-offline,
+body[data-theme="light"] .account-menu__status.is-local {
+  color: var(--warning) !important;
+  background: rgb(var(--warning-rgb) / 0.12) !important;
+}
+
+body[data-theme="light"] .account-menu__status.is-error {
+  color: var(--danger) !important;
+  background: rgb(var(--danger-rgb) / 0.12) !important;
+}
+
+.sidebar-month__controls {
+  grid-template-columns: 36px minmax(0, 1fr) 36px !important;
+  gap: 6px !important;
+}
+
+.sidebar-month__nav-btn,
+.sidebar-month__today-btn {
+  min-height: 36px !important;
+  height: 36px !important;
+  border-radius: 11px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-field-top) 96%, transparent), color-mix(in srgb, var(--surface-field-bottom) 96%, transparent)),
+    color-mix(in srgb, var(--surface-field) 94%, transparent) !important;
+}
+
+.sidebar-month__nav-btn {
+  width: 36px !important;
+  min-width: 36px !important;
+}
+
+.sidebar-month__today-btn {
+  display: inline-grid !important;
+  grid-template-columns: auto auto;
+  place-items: center;
+  align-content: center;
+  padding: 0 10px !important;
+}
+
+.sidebar-month__today-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-grid !important;
+  place-items: center;
+  line-height: 1;
+}
+
+.sidebar-month__today-label {
+  display: inline-block;
+  line-height: 1;
+  transform: translateY(0);
+}
+
+.sidebar-month__nav-btn svg,
+.sidebar-month__today-icon svg {
+  display: block;
+}
+
+.sidebar-month__today-btn.is-current {
+  color: var(--success) !important;
+  border-color: color-mix(in srgb, var(--success) 24%, var(--surface-border-soft)) !important;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--success) 11%, var(--surface-field-top)), color-mix(in srgb, var(--surface-field-bottom) 96%, transparent)),
+    color-mix(in srgb, var(--surface-field) 94%, transparent) !important;
+}
+
+@media (min-width: 769px) {
+  .app-shell.is-sidebar-collapsed .sidebar-month__controls {
+    grid-template-columns: 44px !important;
+  }
+
+  .app-shell.is-sidebar-collapsed .sidebar-month__nav-btn,
+  .app-shell.is-sidebar-collapsed .sidebar-month__today-btn {
+    width: 42px !important;
+    min-width: 42px !important;
+    max-width: 42px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 !important;
+  }
+
+  .app-shell.is-sidebar-collapsed .sidebar-month__today-btn {
+    grid-template-columns: 1fr !important;
+    justify-items: center !important;
+  }
+}
+
+.journal-section .entry-row:not(.entry-row--wishlist),
+.journal-section .entry-row--wishlist {
+  --entry-row-gap: 2px !important;
+  --entry-row-pad-y: 2px !important;
+  --entry-row-pad-x: 6px !important;
+  --entry-row-label-height: 8px !important;
+  --entry-row-field-gap: 1px !important;
+  --entry-row-grid-gap: 1px !important;
+  --entry-row-control-height: 30px !important;
+  --entry-row-action-size: 30px !important;
+  --entry-row-action-radius: 10px !important;
+}
+
+.journal-section .entry-row .entry-field,
+.journal-section .entry-row .entry-field--actions,
+.journal-section .entry-row .entry-actions {
+  grid-template-rows: var(--entry-row-label-height) var(--entry-row-control-height) !important;
+  gap: var(--entry-row-grid-gap) !important;
+}
+
+.journal-section .entry-row :is(
+  .entry-field__control,
+  .entry-day-control,
+  .entry-amount-control,
+  .entry-field__control--category,
+  .entry-field__control--actions,
+  .entry-actions__buttons,
+  .category-trigger,
+  .compact-textarea,
+  input:not(.entry-control-aux)
+) {
+  min-height: var(--entry-row-control-height) !important;
+  height: var(--entry-row-control-height) !important;
+  max-height: var(--entry-row-control-height) !important;
+  border-radius: 10px !important;
+}
+
+.journal-section .entry-row .entry-actions__buttons .icon-btn--row {
+  width: var(--entry-row-action-size) !important;
+  min-width: var(--entry-row-action-size) !important;
+  height: var(--entry-row-action-size) !important;
+  min-height: var(--entry-row-action-size) !important;
+  border-radius: var(--entry-row-action-radius) !important;
+}
+
+.journal-section .entry-row .compact-textarea {
+  padding-block: 0 !important;
+  line-height: calc(var(--entry-row-control-height) - 2px) !important;
+}
+
+.journal-section .entry-row .category-trigger {
+  padding-inline: 8px !important;
+  gap: 6px !important;
+}
+
+.journal-section .entry-row .category-trigger__label {
+  font-size: 0.86rem !important;
+  line-height: 1 !important;
+  transform: none !important;
+}
+
+.journal-section .entry-row .category-trigger__swatch {
+  width: 9px !important;
+  height: 9px !important;
+}
+
+.journal-section .entry-row .entry-field__label {
+  padding-inline-start: 6px !important;
+  font-size: 0.56rem !important;
+  line-height: 1 !important;
+  transform: none !important;
+}
