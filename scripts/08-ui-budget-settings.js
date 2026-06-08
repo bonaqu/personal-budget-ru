@@ -44,6 +44,10 @@ Object.assign(UI, {
 
   renderMonthNavigation() {
     const isCurrentMonth = Store.viewMonth === Utils.monthKey(new Date());
+    const rawCurrentMonthName = new Intl.DateTimeFormat("ru-RU", { month: "long" }).format(new Date());
+    const currentMonthName = rawCurrentMonthName
+      ? `${rawCurrentMonthName.charAt(0).toLocaleUpperCase("ru-RU")}${rawCurrentMonthName.slice(1)}`
+      : Utils.monthLabel(Utils.monthKey(new Date()));
     this.setBudgetText("sidebarMonthLabel", Utils.monthLabel(Store.viewMonth));
     const todayButton = Utils.$("todayBtn");
     if (!todayButton) {
@@ -52,7 +56,11 @@ Object.assign(UI, {
     todayButton.disabled = isCurrentMonth;
     todayButton.classList.toggle("is-current", isCurrentMonth);
     todayButton.setAttribute("aria-current", isCurrentMonth ? "date" : "false");
-    todayButton.title = isCurrentMonth ? "Открыт текущий месяц" : "Перейти к текущему месяцу";
+    const todayButtonLabel = isCurrentMonth
+      ? `Открыт текущий месяц — ${currentMonthName}`
+      : `Перейти к текущему месяцу — ${currentMonthName}`;
+    todayButton.title = todayButtonLabel;
+    todayButton.setAttribute("aria-label", todayButtonLabel);
   },
 
   setBudgetAmountState(target, value) {
@@ -390,7 +398,7 @@ Object.assign(UI, {
         : `Осталось ${Utils.formatMoney(Math.max(0, item.remaining))}`;
       const toneClass = item.exceeded ? " is-exceeded" : (item.usage >= 85 ? " is-tight" : "");
       return `
-        <article class="budget-limit-card${toneClass}">
+        <article class="budget-limit-card${toneClass}" style="--budget-card-accent:${item.category.color}">
           <div class="budget-limit-card__head">
             <div class="budget-limit-card__category">
               <span class="budget-limit-card__swatch" style="background:${item.category.color}"></span>

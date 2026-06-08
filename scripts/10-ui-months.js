@@ -153,6 +153,7 @@ Object.assign(UI, {
         : "Расходов пока нет";
       const card = Utils.createElement("article", "budget-limit-card budget-limit-card--focus");
       card.title = `${item.category.name}: ${Utils.formatMoney(item.amount)}`;
+      card.style.setProperty("--budget-card-accent", item.category.color);
       card.innerHTML = `
         <div class="budget-limit-card__head">
           <div class="budget-limit-card__category">
