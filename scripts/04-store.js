@@ -1042,6 +1042,36 @@ const Store = {
     }, options);
   },
 
+  moveTransactionToMonth(transactionId, targetMonth) {
+    if (!/^\d{4}-\d{2}$/.test(String(targetMonth || ""))) {
+      return false;
+    }
+    const [targetYear, targetMonthNumber] = targetMonth.split("-").map(Number);
+    if (!targetYear || targetMonthNumber < 1 || targetMonthNumber > 12) {
+      return false;
+    }
+    const current = this.data.transactions.find((item) => item.id === transactionId);
+    if (!current || current.date.slice(0, 7) === targetMonth) {
+      return false;
+    }
+    return this.mutate((draft) => {
+      const transaction = draft.transactions.find((item) => item.id === transactionId);
+      if (!transaction) {
+        return;
+      }
+      const sourceDay = Math.max(1, Number(transaction.date.slice(-2)) || 1);
+      const targetMonthDays = new Date(targetYear, targetMonthNumber, 0).getDate();
+      const targetDay = Math.min(sourceDay, targetMonthDays);
+      const targetTransactions = draft.transactions.filter((item) =>
+        item.id !== transactionId && item.date.startsWith(`${targetMonth}-`)
+      );
+      transaction.date = `${targetMonth}-${String(targetDay).padStart(2, "0")}`;
+      transaction.position = getBottomInsertPosition(targetTransactions);
+      transaction.updatedAt = Utils.nowISO();
+      ensureDefaultMonthMeta(draft.months, targetMonth);
+    });
+  },
+
   addFavoriteFromTransaction(transactionId) {
     const transaction = this.data.transactions.find((item) => item.id === transactionId && item.type === "expense" && item.flowKind === "standard");
     if (!transaction) {

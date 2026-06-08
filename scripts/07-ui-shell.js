@@ -806,7 +806,7 @@ Object.assign(UI, {
   },
 
   closeModals() {
-    ["authModal", "accountMenuModal", "transactionModal", "categoryModal", "templateModal", "goalModal", "pickerModal", "syncChoiceModal"]
+    ["authModal", "accountMenuModal", "transactionModal", "moveTransactionModal", "categoryModal", "templateModal", "goalModal", "pickerModal", "syncChoiceModal"]
       .forEach((modalId) => this.closeModal(modalId));
   },
 

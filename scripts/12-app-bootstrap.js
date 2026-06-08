@@ -88,6 +88,11 @@ const App = {
   addBudgetQuickRow(section = "expenses") {
     const safeSection = ["incomes", "debts", "recurring", "expenses", "wishlist"].includes(section) ? section : "expenses";
     this.switchTab("overviewTab");
+    this.addJournalRow(safeSection);
+  },
+
+  addJournalRow(section = "expenses") {
+    const safeSection = ["incomes", "debts", "recurring", "expenses", "wishlist"].includes(section) ? section : "expenses";
     Store.addSectionRow(safeSection);
     UI.setMobileQuickAddOpen(false);
     UI.toast("Новая строка добавлена", "info");
@@ -101,6 +106,15 @@ const App = {
       };
       const row = Utils.$(sectionRoots[safeSection])?.lastElementChild;
       row?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+      const firstField = row?.querySelector?.("[data-journal-field]");
+      if (firstField instanceof HTMLElement) {
+        try {
+          firstField.focus({ preventScroll: true });
+        } catch {
+          firstField.focus();
+        }
+        firstField.select?.();
+      }
     }, 2);
   },
 
@@ -765,6 +779,23 @@ const App = {
     UI.renderApp();
   },
 
+  scrollToBudgetSection(section) {
+    const safeSection = ["incomes", "debts", "recurring", "expenses", "wishlist"].includes(section) ? section : "";
+    if (!safeSection) {
+      return;
+    }
+    const root = document.querySelector(`[data-budget-section="${safeSection}"]`);
+    if (!(root instanceof HTMLElement)) {
+      return;
+    }
+    root.scrollIntoView({
+      block: "start",
+      behavior: UI.prefersReducedMotion() ? "auto" : "smooth"
+    });
+    root.classList.add("is-jump-target");
+    window.setTimeout(() => root.classList.remove("is-jump-target"), 1100);
+  },
+
   refreshBudgetDerivedState() {
     UI.renderSyncState();
     UI.renderHistoryState();
@@ -1062,8 +1093,7 @@ const App = {
       return;
     }
     if (action === "add-row" && section) {
-      Store.addSectionRow(section);
-      UI.toast("Новая строка добавлена", "info");
+      this.addJournalRow(section);
       return;
     }
     if (action === "delete" && id) {
@@ -1096,6 +1126,10 @@ const App = {
           : (changed ? "Операция добавлена в избранное" : "Такая операция уже есть в избранном"),
         changed ? "success" : "info"
       );
+      return;
+    }
+    if (action === "move-month" && id) {
+      this.openMoveTransaction(id);
       return;
     }
     if (action === "pick-day" && id) {
@@ -1398,6 +1432,69 @@ const App = {
     } catch (error) {
       UI.toast(error.message, "warning");
     }
+  },
+
+  openMoveTransaction(transactionId) {
+    const transaction = Store.data.transactions.find((item) => item.id === transactionId);
+    if (!transaction) {
+      return;
+    }
+    Utils.$("moveTransactionId").value = transaction.id;
+    Utils.$("moveTransactionMonthInput").value = transaction.date.slice(0, 7);
+    const description = transaction.description || "Операция без описания";
+    Utils.$("moveTransactionSummary").textContent = `${description} · ${Utils.formatMoney(transaction.amount)} · ${transaction.date}`;
+    this.updateMoveTransactionDateNote();
+    UI.openModal("moveTransactionModal");
+  },
+
+  setMoveTransactionMonth(monthKey) {
+    if (!/^\d{4}-\d{2}$/.test(String(monthKey || ""))) {
+      return;
+    }
+    const input = Utils.$("moveTransactionMonthInput");
+    if (!input) {
+      return;
+    }
+    input.value = monthKey;
+    this.updateMoveTransactionDateNote();
+  },
+
+  shiftMoveTransactionMonth(delta) {
+    const input = Utils.$("moveTransactionMonthInput");
+    const baseMonth = /^\d{4}-\d{2}$/.test(input?.value || "")
+      ? input.value
+      : Utils.monthKey(new Date());
+    const [year, month] = baseMonth.split("-").map(Number);
+    this.setMoveTransactionMonth(Utils.monthKey(new Date(year, month - 1 + Number(delta || 0), 1)));
+  },
+
+  updateMoveTransactionDateNote() {
+    const id = Utils.$("moveTransactionId")?.value || "";
+    const transaction = Store.data.transactions.find((item) => item.id === id);
+    const targetMonth = Utils.$("moveTransactionMonthInput")?.value || "";
+    const note = Utils.$("moveTransactionDateNote");
+    if (!transaction || !/^\d{4}-\d{2}$/.test(targetMonth) || !note) {
+      return;
+    }
+    const sourceDay = Math.max(1, Number(transaction.date.slice(-2)) || 1);
+    const [year, month] = targetMonth.split("-").map(Number);
+    const targetDay = Math.min(sourceDay, new Date(year, month, 0).getDate());
+    note.textContent = `Новая дата: ${targetMonth}-${String(targetDay).padStart(2, "0")}. Сумма, описание и категория не изменятся.`;
+  },
+
+  saveMovedTransaction() {
+    const id = Utils.$("moveTransactionId")?.value || "";
+    const targetMonth = Utils.$("moveTransactionMonthInput")?.value || "";
+    if (!/^\d{4}-\d{2}$/.test(targetMonth)) {
+      UI.toast("Выберите месяц, в который нужно перенести операцию", "warning");
+      return;
+    }
+    const changed = Store.moveTransactionToMonth(id, targetMonth);
+    UI.closeModal("moveTransactionModal");
+    UI.toast(
+      changed ? `Операция перенесена в ${Utils.monthLabel(targetMonth).toLowerCase()}` : "Операция уже находится в выбранном месяце",
+      changed ? "success" : "info"
+    );
   },
 
   deleteTransaction(transactionId) {

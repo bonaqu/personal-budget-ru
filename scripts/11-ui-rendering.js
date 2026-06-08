@@ -357,6 +357,7 @@ Object.assign(UI, {
     // без полной пересборки общей оболочки приложения.
     this.applyTheme();
     this.renderTabs();
+    this.renderMonthNavigation?.();
     this.renderSyncState();
     this.renderHistoryState();
     this.renderFormCategories();

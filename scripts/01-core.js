@@ -278,6 +278,16 @@ const Utils = {
           <path d="M15.75 12.5H15.76"></path>
         </svg>
       `,
+      calendarMove: `
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3.75" y="5.5" width="16.5" height="14" rx="3"></rect>
+          <path d="M8 3.75V7"></path>
+          <path d="M16 3.75V7"></path>
+          <path d="M3.75 9.5H20.25"></path>
+          <path d="M8 14H16"></path>
+          <path d="M13.5 11.5L16 14L13.5 16.5"></path>
+        </svg>
+      `,
       bookmark: `
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M7.5 5.5H16.5C17.0523 5.5 17.5 5.94772 17.5 6.5V19L12 15.4L6.5 19V6.5C6.5 5.94772 6.94772 5.5 7.5 5.5Z"></path>

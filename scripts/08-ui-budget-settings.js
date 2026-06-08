@@ -42,6 +42,19 @@ Object.assign(UI, {
     return node;
   },
 
+  renderMonthNavigation() {
+    const isCurrentMonth = Store.viewMonth === Utils.monthKey(new Date());
+    this.setBudgetText("sidebarMonthLabel", Utils.monthLabel(Store.viewMonth));
+    const todayButton = Utils.$("todayBtn");
+    if (!todayButton) {
+      return;
+    }
+    todayButton.disabled = isCurrentMonth;
+    todayButton.classList.toggle("is-current", isCurrentMonth);
+    todayButton.setAttribute("aria-current", isCurrentMonth ? "date" : "false");
+    todayButton.title = isCurrentMonth ? "Открыт текущий месяц" : "Перейти к текущему месяцу";
+  },
+
   setBudgetAmountState(target, value) {
     const node = typeof target === "string" ? Utils.$(target) : target;
     if (node) {
@@ -139,7 +152,7 @@ Object.assign(UI, {
   renderSummary() {
     const allTime = Store.allTimeStats();
     const active = Store.statsForMonth(Store.viewMonth);
-    const isCurrentMonth = Store.viewMonth === Utils.monthKey(new Date());
+    this.renderMonthNavigation();
     const monthLabelLower = Utils.monthLabel(Store.viewMonth).toLowerCase();
     const balanceTooltip = `Общий баланс показывает итог за всю историю: все доходы минус все расходы по всем месяцам. Он не равен остатку текущего месяца. Чтобы понять, сколько денег остается в выбранном месяце, смотрите карточку "Остаток на конец".`;
     const incomeTooltip = `Доходы месяца — сумма всех поступлений только за ${Utils.monthLabel(Store.viewMonth).toLowerCase()}. Основание расчета: операции раздела "Доходы" выбранного месяца.`;
@@ -169,8 +182,7 @@ Object.assign(UI, {
       netHint: Utils.$("netHint"),
       savingsHint: Utils.$("savingsHint"),
       monthOpsHint: Utils.$("monthOpsHint"),
-      averageCheckHint: Utils.$("averageCheckHint"),
-      todayBtn: Utils.$("todayBtn")
+      averageCheckHint: Utils.$("averageCheckHint")
     };
     const signature = JSON.stringify({
       month: Store.viewMonth,
@@ -185,9 +197,6 @@ Object.assign(UI, {
       finalBalance: Utils.roundMoney(active.finalBalance),
       topExpense: Utils.roundMoney(active.topExpense?.amount || 0)
     });
-    if (nodes.todayBtn) {
-      nodes.todayBtn.classList.toggle("is-hidden", isCurrentMonth);
-    }
     if (this.budgetRenderCache?.summary === signature) {
       return;
     }
@@ -242,10 +251,6 @@ Object.assign(UI, {
       [nodes.averageCheckTotal, averageCheckTooltip],
       [nodes.averageCheckHint, averageCheckTooltip]
     ].forEach(([target, text]) => this.setBudgetHelp(target, text));
-
-    if (nodes.todayBtn) {
-      nodes.todayBtn.classList.toggle("is-hidden", isCurrentMonth);
-    }
   },
 
   renderMonthPlan() {
@@ -485,7 +490,24 @@ Object.assign(UI, {
     });
 
     this.renderJournalSummary();
+    this.renderJournalNavigator();
     this.renderJournalSortButtons();
+  },
+
+  renderJournalNavigator() {
+    const counts = {
+      jumpIncomesCount: Store.getSectionTransactions("incomes", Store.viewMonth).length,
+      jumpDebtsCount: Store.getSectionTransactions("debts", Store.viewMonth).length,
+      jumpRecurringCount: Store.getSectionTransactions("recurring", Store.viewMonth).length,
+      jumpExpensesCount: Store.getSectionTransactions("expenses", Store.viewMonth).length,
+      jumpWishlistCount: Store.getSectionTransactions("wishlist", Store.viewMonth).length
+    };
+    Object.entries(counts).forEach(([id, count]) => {
+      const node = Utils.$(id);
+      if (node) {
+        node.textContent = String(count);
+      }
+    });
   },
 
   renderJournalSummary() {
@@ -610,6 +632,7 @@ Object.assign(UI, {
             <div class="entry-actions__buttons">
             ${templateMeta ? `<button class="icon-btn icon-btn--tiny icon-btn--row${templateState}" type="button" data-journal-action="template" data-template-bucket="${templateBucket}" data-id="${transaction.id}" aria-label="${templateState ? templateMeta.removeLabel : templateMeta.addLabel}" title="${templateState ? templateMeta.removeLabel : templateMeta.addLabel}">${Utils.icon("bookmark")}</button>` : ""}
             ${section === "expenses" ? `<button class="icon-btn icon-btn--tiny icon-btn--row${favoriteState}" type="button" data-journal-action="favorite" data-id="${transaction.id}" aria-label="${favoriteState ? "Убрать из избранного" : "Добавить в избранное"}" title="${favoriteState ? "Убрать из избранного" : "Добавить в избранное"}">${Utils.icon("star")}</button>` : ""}
+            <button class="icon-btn icon-btn--tiny icon-btn--row" type="button" data-journal-action="move-month" data-id="${transaction.id}" aria-label="Перенести в другой месяц" title="Перенести в другой месяц">${Utils.icon("calendarMove")}</button>
             <button class="icon-btn icon-btn--tiny icon-btn--row" type="button" data-journal-action="delete" data-id="${transaction.id}" aria-label="Удалить">${Utils.icon("close")}</button>
             </div>
           </div>

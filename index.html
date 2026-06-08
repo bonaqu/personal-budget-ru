@@ -158,6 +158,39 @@
           </div>
         </section>
 
+        <section class="sidebar__card sidebar__card--month" aria-label="Навигация по месяцам">
+          <div class="sidebar-month">
+            <div class="sidebar-month__copy">
+              <span>Выбранный месяц</span>
+              <strong id="sidebarMonthLabel">Март 2026</strong>
+            </div>
+            <div class="sidebar-month__controls">
+              <button class="icon-btn sidebar-month__nav-btn" id="prevMonthBtn" type="button" aria-label="Предыдущий месяц" title="Предыдущий месяц">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M14.5 6.5L9 12L14.5 17.5"></path>
+                </svg>
+              </button>
+              <button class="sidebar-month__today-btn" id="todayBtn" type="button" aria-label="Перейти к текущему месяцу" title="Перейти к текущему месяцу">
+                <span class="sidebar-month__today-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <rect x="4.5" y="5.5" width="15" height="14" rx="3"></rect>
+                    <path d="M8 3.75V7"></path>
+                    <path d="M16 3.75V7"></path>
+                    <path d="M4.5 9.5H19.5"></path>
+                    <path d="M12 12.5V16.5"></path>
+                  </svg>
+                </span>
+                <span class="sidebar-month__today-label">Сейчас</span>
+              </button>
+              <button class="icon-btn sidebar-month__nav-btn" id="nextMonthBtn" type="button" aria-label="Следующий месяц" title="Следующий месяц">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M9.5 6.5L15 12L9.5 17.5"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </section>
+
         <section class="sidebar__card sidebar__card--nav">
           <nav class="sidebar-nav" aria-label="Разделы приложения">
             <button class="tabbar__btn is-active" data-tab-target="overviewTab" type="button">
@@ -275,21 +308,6 @@
                 <p class="hero-strip__caption" id="heroCaption">Операции месяца, быстрые сценарии и финансовые цели.</p>
               </div>
 
-              <div class="hero-strip__period">
-                <button class="btn btn--ghost btn--compact btn--month-return is-hidden" id="todayBtn" type="button">К текущему месяцу</button>
-                <div class="hero-strip__nav-group" aria-label="Навигация по месяцам">
-                  <button class="icon-btn hero-strip__nav-btn" id="prevMonthBtn" type="button" aria-label="Предыдущий месяц">
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <path d="M14.5 6.5L9 12L14.5 17.5"></path>
-                    </svg>
-                  </button>
-                  <button class="icon-btn hero-strip__nav-btn" id="nextMonthBtn" type="button" aria-label="Следующий месяц">
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <path d="M9.5 6.5L15 12L9.5 17.5"></path>
-                    </svg>
-                  </button>
-                </div>
-              </div>
             </div>
 
             <div class="hero-strip__facts hero-strip__facts--budget">
@@ -570,8 +588,48 @@
                     </div>
                   </section>
 
+                  <nav class="budget-jumpbar" id="budgetJumpbar" aria-label="Быстрый переход по разделам операций">
+                    <div class="budget-jumpbar__scroll">
+                      <div class="budget-jumpbar__item">
+                        <button class="budget-jumpbar__link" type="button" data-action="jump-budget-section" data-section="incomes">
+                          <span>Доходы</span>
+                          <strong id="jumpIncomesCount">0</strong>
+                        </button>
+                        <button class="icon-btn budget-jumpbar__add" type="button" data-journal-action="add-row" data-section="incomes" aria-label="Добавить доход" title="Добавить доход">+</button>
+                      </div>
+                      <div class="budget-jumpbar__item">
+                        <button class="budget-jumpbar__link" type="button" data-action="jump-budget-section" data-section="debts">
+                          <span>Долги</span>
+                          <strong id="jumpDebtsCount">0</strong>
+                        </button>
+                        <button class="icon-btn budget-jumpbar__add" type="button" data-journal-action="add-row" data-section="debts" aria-label="Добавить долг" title="Добавить долг">+</button>
+                      </div>
+                      <div class="budget-jumpbar__item">
+                        <button class="budget-jumpbar__link" type="button" data-action="jump-budget-section" data-section="recurring">
+                          <span>Регулярные</span>
+                          <strong id="jumpRecurringCount">0</strong>
+                        </button>
+                        <button class="icon-btn budget-jumpbar__add" type="button" data-journal-action="add-row" data-section="recurring" aria-label="Добавить регулярный платеж" title="Добавить регулярный платеж">+</button>
+                      </div>
+                      <div class="budget-jumpbar__item">
+                        <button class="budget-jumpbar__link" type="button" data-action="jump-budget-section" data-section="expenses">
+                          <span>Расходы</span>
+                          <strong id="jumpExpensesCount">0</strong>
+                        </button>
+                        <button class="icon-btn budget-jumpbar__add" type="button" data-journal-action="add-row" data-section="expenses" aria-label="Добавить расход" title="Добавить расход">+</button>
+                      </div>
+                      <div class="budget-jumpbar__item">
+                        <button class="budget-jumpbar__link" type="button" data-action="jump-budget-section" data-section="wishlist">
+                          <span>Хотелки</span>
+                          <strong id="jumpWishlistCount">0</strong>
+                        </button>
+                        <button class="icon-btn budget-jumpbar__add" type="button" data-journal-action="add-row" data-section="wishlist" aria-label="Добавить хотелку" title="Добавить хотелку">+</button>
+                      </div>
+                    </div>
+                  </nav>
+
                   <div class="journal-sections">
-                <section class="journal-section">
+                <section class="journal-section" id="journalSectionIncomes" data-budget-section="incomes">
                   <div class="journal-section__head">
                     <h4>💵 Доходы</h4>
                     <div class="section-actions">
@@ -584,7 +642,7 @@
                   </div>
                 </section>
 
-                <section class="journal-section">
+                <section class="journal-section" id="journalSectionDebts" data-budget-section="debts">
                   <div class="journal-section__head">
                     <h4>🏦 Долговые обязательства</h4>
                     <div class="section-actions">
@@ -597,7 +655,7 @@
                   </div>
                 </section>
 
-                <section class="journal-section">
+                <section class="journal-section" id="journalSectionRecurring" data-budget-section="recurring">
                   <div class="journal-section__head">
                     <h4>🔁 Регулярные платежи (ЖКХ + Моб + Инет + Подписки)</h4>
                     <div class="section-actions">
@@ -610,7 +668,7 @@
                   </div>
                 </section>
 
-                <section class="journal-section">
+                <section class="journal-section" id="journalSectionExpenses" data-budget-section="expenses">
                   <div class="journal-section__head">
                     <h4>🛒 Текущие расходы</h4>
                     <div class="section-actions">
@@ -623,7 +681,7 @@
                   </div>
                 </section>
 
-                <section class="journal-section journal-section--wishlist">
+                <section class="journal-section journal-section--wishlist" id="journalSectionWishlist" data-budget-section="wishlist">
                   <div class="journal-section__head">
                     <h4>🌟 Хотелки (Вишлист)</h4>
                   </div>
@@ -1154,6 +1212,38 @@
 
         <div class="field field--full">
           <button class="btn btn--primary btn--block" type="submit">Сохранить изменения</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="moveTransactionModal" aria-hidden="true">
+    <div class="modal__backdrop" data-close-modal="moveTransactionModal"></div>
+    <div class="modal__dialog glass-card modal__dialog--sm">
+      <div class="modal__head">
+        <p class="eyebrow">Перенос операции</p>
+        <h3>Выберите другой месяц</h3>
+        <p class="modal__subtext" id="moveTransactionSummary">Дата операции изменится, остальные данные сохранятся.</p>
+      </div>
+
+      <form id="moveTransactionForm" class="stack-form" novalidate>
+        <input id="moveTransactionId" type="hidden">
+
+        <div class="move-month-quick" aria-label="Быстрый выбор месяца">
+          <button class="btn btn--ghost btn--compact" type="button" data-action="shift-move-month" data-delta="-1">На месяц раньше</button>
+          <button class="btn btn--ghost btn--compact" type="button" data-action="set-move-current-month">Текущий месяц</button>
+          <button class="btn btn--ghost btn--compact" type="button" data-action="shift-move-month" data-delta="1">На месяц позже</button>
+        </div>
+
+        <label class="field">
+          <span class="field__label">Новый месяц</span>
+          <input id="moveTransactionMonthInput" type="month" required>
+          <span class="field__note" id="moveTransactionDateNote">Число месяца будет сохранено, если оно есть в выбранном месяце.</span>
+        </label>
+
+        <div class="move-month-actions">
+          <button class="btn btn--primary" type="submit">Перенести</button>
+          <button class="btn btn--ghost" type="button" data-close-modal="moveTransactionModal">Отмена</button>
         </div>
       </form>
     </div>

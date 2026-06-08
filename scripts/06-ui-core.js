@@ -1239,6 +1239,11 @@ const UI = {
       event.preventDefault();
       App.saveEditedTransaction();
     });
+    on("moveTransactionForm", "submit", (event) => {
+      event.preventDefault();
+      App.saveMovedTransaction();
+    });
+    on("moveTransactionMonthInput", "input", () => App.updateMoveTransactionDateNote());
     on("categoryForm", "submit", (event) => {
       event.preventDefault();
       App.saveCategory();
@@ -1428,6 +1433,18 @@ const UI = {
               behavior: this.prefersReducedMotion() ? "auto" : "smooth"
             });
             this.scheduleScrollTopButtonUpdate();
+            return;
+          }
+          if (action === "jump-budget-section") {
+            App.scrollToBudgetSection(actionButton.dataset.section || "");
+            return;
+          }
+          if (action === "shift-move-month") {
+            App.shiftMoveTransactionMonth(Number(actionButton.dataset.delta || 0));
+            return;
+          }
+          if (action === "set-move-current-month") {
+            App.setMoveTransactionMonth(Utils.monthKey(new Date()));
             return;
           }
           if (action === "close-mobile-quick-add") {
