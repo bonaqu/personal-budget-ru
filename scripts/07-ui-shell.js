@@ -658,9 +658,12 @@ Object.assign(UI, {
       nextEvents.style.minHeight = persistedEventsMinHeight || persistedEventsHeight;
       nextEvents.style.maxHeight = persistedEventsMaxHeight || persistedEventsHeight;
     }
+    const scrollAfterRender = window.scrollY;
     requestAnimationFrame(() => {
+      const scrollBeforeLayoutSync = window.scrollY;
       this.syncPaymentCalendarLayout(root);
-      if (Math.abs(window.scrollY - previousScrollY) > 1) {
+      const userMovedSinceRender = Math.abs(scrollBeforeLayoutSync - scrollAfterRender) > 1;
+      if (!userMovedSinceRender && Math.abs(window.scrollY - previousScrollY) > 1) {
         window.scrollTo({ top: previousScrollY, left: 0, behavior: "auto" });
       }
     });
