@@ -114,6 +114,7 @@ Object.assign(UI, {
       const card = Utils.createElement("article", "goal-card");
       card.style.setProperty("--goal-color", goal.color);
       card.classList.toggle("goal-card--complete", goal.progress >= 100);
+      this.bindPointerGlow(card);
 
       const head = Utils.createElement("div", "goal-card__head");
       const titleBox = Utils.createElement("div", "goal-card__title");
@@ -580,55 +581,66 @@ Object.assign(UI, {
     }
     const stats = Store.statsForMonth(Store.viewMonth);
     const activeDays = stats.trend.filter((item) => item.income > 0 || item.expense > 0).length;
+    const [year, month] = Store.viewMonth.split("-").map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const expenseOperations = Store.getTransactions("month", Store.viewMonth)
+      .filter((transaction) => transaction.type === "expense").length;
+    const transactionContext = (transaction) => {
+      if (!transaction) return "";
+      const category = Store.getCategory(transaction.categoryId)?.name || "Без категории";
+      return `${category} · ${Utils.formatDate(transaction.date)}`;
+    };
     const items = [
       {
         title: "Крупнейший расход",
         value: stats.topExpense ? Utils.formatMoney(stats.topExpense.amount) : "Нет данных",
-        note: stats.topExpense ? stats.topExpense.description : "Добавьте расходы"
+        note: stats.topExpense ? stats.topExpense.description : "Добавьте расходы",
+        context: stats.topExpense ? transactionContext(stats.topExpense) : "Операций пока нет"
       },
       {
         title: "Крупнейший доход",
         value: stats.topIncome ? Utils.formatMoney(stats.topIncome.amount) : "Нет данных",
-        note: stats.topIncome ? stats.topIncome.description : "Добавьте доход"
+        note: stats.topIncome ? stats.topIncome.description : "Добавьте доход",
+        context: stats.topIncome ? transactionContext(stats.topIncome) : "Операций пока нет"
       },
       {
         title: "Топ-категория",
         value: stats.topCategory ? stats.topCategory.name : "Нет данных",
-        note: stats.topCategory ? `${Utils.formatMoney(stats.topCategoryAmount)} · ${Utils.formatPercent(stats.concentration)} расходов` : "Структура появится после трат"
+        note: stats.topCategory ? `${Utils.formatMoney(stats.topCategoryAmount)} · ${Utils.formatPercent(stats.concentration)} расходов` : "Структура появится после трат",
+        context: expenseOperations ? `${expenseOperations} расходных операций в месяце` : "Расходов пока нет"
       },
       {
         title: "Средний расход в день",
         value: Utils.formatMoney(stats.averageExpensePerDay),
-        note: "Считает весь месяц, чтобы ритм трат был виден сразу"
+        note: "Средняя сумма расходов на календарный день выбранного месяца.",
+        context: `${Utils.formatMoney(stats.totals.expense)} за ${daysInMonth} дн.`
       },
       {
         title: "Остаток на конец",
         value: Utils.formatMoney(stats.finalBalance),
-        note: "Свободный остаток после всех операций выбранного месяца"
+        note: "Сумма после всех доходов и расходов выбранного месяца.",
+        context: `Старт месяца: ${Utils.formatMoney(stats.startBalance)}`
       },
       {
         title: "Активных дней",
         value: String(activeDays),
         note: activeDays
-          ? `В ${activeDays} днях месяца было движение денег`
-          : "В этом месяце пока не было операций"
+          ? `Движение денег было в ${activeDays} из ${daysInMonth} дней.`
+          : "В этом месяце пока не было операций.",
+        context: `${stats.operations} операций за месяц`
       }
     ];
     const fragment = document.createDocumentFragment();
     items.forEach((item) => {
       const card = Utils.createElement("article", "deep-stat");
-      const value = Utils.createElement("div");
-      value.style.marginTop = "8px";
-      value.style.fontSize = "1.05rem";
-      value.style.fontWeight = "800";
-      value.textContent = item.value;
-      const note = Utils.createElement("small", "", item.note);
-      note.style.display = "block";
-      note.style.marginTop = "8px";
+      const value = Utils.createElement("div", "deep-stat__value", item.value);
+      const note = Utils.createElement("small", "deep-stat__note", item.note);
+      const context = Utils.createElement("small", "deep-stat__context", item.context);
       card.append(
         Utils.createElement("strong", "", item.title),
         value,
-        note
+        note,
+        context
       );
       fragment.appendChild(card);
     });

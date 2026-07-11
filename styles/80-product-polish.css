@@ -5262,7 +5262,10 @@ body[data-theme="light"] .account-menu__status.is-error {
 }
 
 .analytics-panel--goals .goal-list {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)) !important;
+  max-block-size: none !important;
+  overflow: visible !important;
+  padding-inline-end: 0 !important;
+  scrollbar-gutter: auto !important;
 }
 
 .goal-card:not(.goal-card--adder):not(.goal-card--empty) {
@@ -5283,28 +5286,34 @@ body[data-theme="light"] .account-menu__status.is-error {
 .goal-card:not(.goal-card--adder):not(.goal-card--empty)::before {
   content: "";
   position: absolute;
-  inset: 0 0 auto;
-  block-size: 1px;
+  inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--goal-color, var(--info)) 60%, rgba(255, 255, 255, 0.8)),
-    transparent
-  );
-  opacity: 0.68;
+  background:
+    radial-gradient(
+      circle 150px at var(--goal-glow-x, 22%) var(--goal-glow-y, 8%),
+      color-mix(in srgb, var(--goal-color, var(--info)) 19%, rgba(255, 255, 255, 0.08)),
+      transparent 72%
+    ),
+    linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--goal-color, var(--info)) 64%, rgba(255, 255, 255, 0.82)),
+      transparent
+    ) top / 100% 1px no-repeat;
+  opacity: 0.56;
+  transition: opacity 0.18s ease;
 }
 
 .goal-card:not(.goal-card--adder):not(.goal-card--empty)::after {
   content: "";
   position: absolute;
   inset-block: -36%;
-  inset-inline-start: -46%;
-  inline-size: 34%;
+  inset-inline-start: -58%;
+  inline-size: 44%;
   z-index: 0;
   pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.11), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
   transform: skewX(-18deg);
   opacity: 0;
 }
@@ -5333,7 +5342,7 @@ body[data-theme="light"] .account-menu__status.is-error {
 
 .goal-card--complete:not(.goal-card--adder)::before {
   opacity: 1;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--success) 70%, #fff), transparent);
+  filter: saturate(1.08);
 }
 
 .goal-card--adder {
@@ -5359,10 +5368,23 @@ body[data-theme="light"] .account-menu__status.is-error {
       0 0 26px color-mix(in srgb, var(--goal-color, var(--info)) 9%, transparent) !important;
   }
 
+  .goal-card:not(.goal-card--adder):not(.goal-card--empty):is(:hover, :focus-within)::before {
+    opacity: 1;
+  }
+
   .goal-card:not(.goal-card--adder):not(.goal-card--empty):is(:hover, :focus-within)::after {
-    inset-inline-start: 112%;
+    inset-inline-start: 118%;
     opacity: 1;
     transition: inset-inline-start 0.62s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.12s ease;
+  }
+
+  .goal-card:not(.goal-card--adder):not(.goal-card--empty):is(:hover, :focus-within) .goal-progress__fill {
+    filter: saturate(1.12) brightness(1.08);
+  }
+
+  .goal-card:not(.goal-card--adder):not(.goal-card--empty):is(:hover, :focus-within) .goal-card__meta span {
+    border-color: color-mix(in srgb, var(--goal-color, var(--info)) 26%, var(--surface-border-soft));
+    background: color-mix(in srgb, var(--goal-color, var(--info)) 9%, var(--surface-card-soft));
   }
 
   .goal-card--adder:hover {
@@ -5399,12 +5421,78 @@ body[data-theme="light"] .goal-card:not(.goal-card--adder):not(.goal-card--empty
     0 10px 24px rgba(22, 49, 82, 0.08) !important;
 }
 
-@media (max-width: 768px) {
-  .analytics-panel--goals .goal-list {
-    max-block-size: none !important;
-    overflow: visible !important;
-    padding-inline-end: 0 !important;
-    scrollbar-gutter: auto !important;
+/* Advanced statistics: compact 3×2 desktop grid with useful context. */
+.analytics-panel--advanced[data-active-view="deep"] {
+  min-height: 0 !important;
+}
+
+.analytics-panel--advanced[data-active-view="deep"] .analytics-advanced__body,
+.analytics-panel--advanced[data-active-view="deep"] .analytics-advanced__pane--deep {
+  min-height: 0 !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.analytics-panel--advanced[data-active-view="deep"] .deep-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  grid-auto-rows: 1fr !important;
+  height: auto !important;
+  gap: 10px !important;
+}
+
+.analytics-panel--advanced[data-active-view="deep"] .deep-stat {
+  grid-template-rows: auto auto minmax(2.7em, auto) auto !important;
+  align-content: start !important;
+  min-height: 0 !important;
+  padding: 13px 14px !important;
+  gap: 7px !important;
+  border-color: color-mix(in srgb, var(--accent) 12%, var(--line)) !important;
+  background:
+    linear-gradient(145deg, rgb(var(--accent-rgb) / 0.035), transparent 46%),
+    var(--surface-card-strong) !important;
+}
+
+.deep-stat__value {
+  min-width: 0;
+  color: var(--text-main);
+  font-size: 1.08rem;
+  font-weight: 850;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.deep-stat__note {
+  display: block;
+  color: var(--text-soft);
+  font-size: 0.76rem;
+  line-height: 1.38;
+}
+
+.deep-stat__context {
+  display: block;
+  padding-top: 7px;
+  border-top: 1px solid var(--surface-border-soft);
+  color: color-mix(in srgb, var(--text-soft) 82%, var(--accent));
+  font-size: 0.71rem;
+  line-height: 1.3;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .analytics-panel--advanced[data-active-view="deep"] .deep-stat:hover {
+    border-color: color-mix(in srgb, var(--accent) 24%, var(--line)) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.065), 0 12px 24px rgba(0, 0, 0, 0.11);
+  }
+}
+
+@media (max-width: 1160px) {
+  .analytics-panel--advanced[data-active-view="deep"] .deep-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .analytics-panel--advanced[data-active-view="deep"] .deep-stats {
+    grid-template-columns: 1fr !important;
   }
 }
 

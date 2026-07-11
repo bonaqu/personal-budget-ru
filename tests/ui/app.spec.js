@@ -248,7 +248,7 @@ test("API console diagnostics include request id but never credentials", async (
   expect(output).not.toContain("console_probe");
 });
 
-test("goal cards fill the panel and premium motion respects user preferences", async ({ page }) => {
+test("goal cards stay compact, wrap after four and premium motion respects preferences", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
   expect(await page.locator(".auth-shell-card").evaluate((element) => (
@@ -263,25 +263,63 @@ test("goal cards fill the panel and premium motion respects user preferences", a
 
   const layout = await page.locator("#goalList").evaluate((list) => {
     const cards = Array.from(list.querySelectorAll(".goal-card"));
-    const listRect = list.getBoundingClientRect();
     const widths = cards.map((card) => Math.round(card.getBoundingClientRect().width));
     return {
       cardCount: cards.length,
+      columns: getComputedStyle(list).gridTemplateColumns.split(" ").length,
       widths,
-      rightGap: Math.round(listRect.right - cards.at(-1).getBoundingClientRect().right),
       overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       progressRole: list.querySelector(".goal-progress")?.getAttribute("role")
     };
   });
   expect(layout.cardCount).toBe(3);
-  expect(Math.min(...layout.widths)).toBeGreaterThan(380);
-  expect(layout.rightGap).toBeLessThanOrEqual(24);
+  expect(layout.columns).toBe(4);
+  expect(Math.min(...layout.widths)).toBeGreaterThan(280);
+  expect(Math.max(...layout.widths)).toBeLessThan(330);
   expect(layout.overflow).toBeLessThanOrEqual(1);
   expect(layout.progressRole).toBe("progressbar");
 
+  const wrappedRows = await page.evaluate(() => {
+    const data = Utils.clone(Store.data);
+    const now = Utils.nowISO();
+    data.settings.goals.push(...Array.from({ length: 3 }, (_, index) => ({
+      id: `goal_grid_${index}`,
+      name: `Дополнительная цель ${index + 1}`,
+      target: 100000 + index * 10000,
+      saved: 10000 + index * 1000,
+      mode: "saved",
+      color: "#58a6ff",
+      note: "Проверка переноса карточек на следующую строку",
+      position: index + 3,
+      createdAt: now,
+      updatedAt: now
+    })));
+    Store.setData(data, { save: false });
+    UI.renderGoals();
+    const list = document.querySelector("#goalList");
+    return {
+      tops: Array.from(list.querySelectorAll(".goal-card"))
+        .map((card) => Math.round(card.getBoundingClientRect().top)),
+      overflowY: getComputedStyle(list).overflowY,
+      clientHeight: list.clientHeight,
+      scrollHeight: list.scrollHeight
+    };
+  });
+  expect(wrappedRows.tops).toHaveLength(6);
+  expect(new Set(wrappedRows.tops.slice(0, 4)).size).toBe(1);
+  expect(wrappedRows.tops[4]).toBeGreaterThan(wrappedRows.tops[0]);
+  expect(wrappedRows.overflowY).toBe("visible");
+  expect(wrappedRows.scrollHeight).toBe(wrappedRows.clientHeight);
+
   const goalCard = page.locator(".goal-card:not(.goal-card--adder)").first();
-  await goalCard.hover();
+  const goalBox = await goalCard.boundingBox();
+  await page.mouse.move(goalBox.x + goalBox.width * 0.2, goalBox.y + goalBox.height * 0.25);
+  await page.waitForTimeout(40);
+  const leftGlow = await goalCard.evaluate((element) => element.style.getPropertyValue("--goal-glow-x"));
+  await page.mouse.move(goalBox.x + goalBox.width * 0.8, goalBox.y + goalBox.height * 0.65);
   await page.waitForTimeout(180);
+  const rightGlow = await goalCard.evaluate((element) => element.style.getPropertyValue("--goal-glow-x"));
+  expect(parseFloat(rightGlow)).toBeGreaterThan(parseFloat(leftGlow) + 40);
   expect(await goalCard.evaluate((element) => getComputedStyle(element, "::after").opacity)).toBe("1");
 
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -305,6 +343,37 @@ test("goal cards fill the panel and premium motion respects user preferences", a
   expect(mobile.maxHeight).toBe("none");
   expect(mobile.overflowY).toBe("visible");
   expect(mobile.overflow).toBeLessThanOrEqual(1);
+});
+
+test("advanced statistics use a compact 3 by 2 grid with useful context", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await loginDemo(page);
+  await page.locator('.sidebar-nav [data-tab-target="analyticsTab"]').click();
+  const desktop = await page.locator("#deepStats").evaluate((root) => {
+    const cards = Array.from(root.querySelectorAll(".deep-stat"));
+    return {
+      columns: getComputedStyle(root).gridTemplateColumns.split(" ").length,
+      widths: cards.map((card) => Math.round(card.getBoundingClientRect().width)),
+      rows: cards.map((card) => Math.round(card.getBoundingClientRect().top)),
+      contexts: cards.map((card) => card.querySelector(".deep-stat__context")?.textContent?.trim() || ""),
+      panelHeight: Math.round(root.closest(".analytics-panel--advanced").getBoundingClientRect().height),
+      activeView: root.closest(".analytics-panel--advanced").dataset.activeView
+    };
+  });
+  expect(desktop.columns).toBe(3);
+  expect(Math.min(...desktop.widths)).toBeGreaterThan(380);
+  expect(Math.max(...desktop.widths)).toBeLessThan(460);
+  expect(new Set(desktop.rows.slice(0, 3)).size).toBe(1);
+  expect(desktop.rows[3]).toBeGreaterThan(desktop.rows[0]);
+  expect(desktop.contexts).toHaveLength(6);
+  expect(desktop.contexts.every(Boolean)).toBe(true);
+  expect(desktop.panelHeight).toBeLessThan(430);
+  expect(desktop.activeView).toBe("deep");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.locator("#deepStats").evaluate((root) => (
+    getComputedStyle(root).gridTemplateColumns.split(" ").length
+  ))).toBe(1);
 });
 
 test("backup copy is concise and keeps the safety explanation", async ({ page }) => {

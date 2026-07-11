@@ -80,6 +80,42 @@ const UI = {
       && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   },
 
+  bindPointerGlow(element) {
+    if (
+      !(element instanceof HTMLElement)
+      || this.prefersReducedMotion()
+      || !window.matchMedia?.("(hover: hover) and (pointer: fine)").matches
+    ) {
+      return;
+    }
+    let bounds = null;
+    let frame = 0;
+    let nextX = 50;
+    let nextY = 18;
+    const paint = () => {
+      frame = 0;
+      element.style.setProperty("--goal-glow-x", `${nextX.toFixed(1)}%`);
+      element.style.setProperty("--goal-glow-y", `${nextY.toFixed(1)}%`);
+    };
+    element.addEventListener("pointerenter", () => {
+      bounds = element.getBoundingClientRect();
+    });
+    element.addEventListener("pointermove", (event) => {
+      if (event.pointerType === "touch") return;
+      bounds ||= element.getBoundingClientRect();
+      nextX = Math.max(0, Math.min(100, ((event.clientX - bounds.left) / Math.max(1, bounds.width)) * 100));
+      nextY = Math.max(0, Math.min(100, ((event.clientY - bounds.top) / Math.max(1, bounds.height)) * 100));
+      if (!frame) frame = requestAnimationFrame(paint);
+    });
+    element.addEventListener("pointerleave", () => {
+      bounds = null;
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      element.style.removeProperty("--goal-glow-x");
+      element.style.removeProperty("--goal-glow-y");
+    });
+  },
+
   getFocusableElements(root) {
     if (!(root instanceof HTMLElement)) {
       return [];
@@ -205,6 +241,8 @@ const UI = {
     if (!body) {
       return;
     }
+    const panel = body.closest(".analytics-panel--advanced");
+    if (panel instanceof HTMLElement) panel.dataset.activeView = this.analyticsAdvancedView;
     body.querySelectorAll("[data-analytics-pane]").forEach((pane) => {
       const isActive = pane.dataset.analyticsPane === this.analyticsAdvancedView;
       pane.id ||= `analyticsPane${pane.dataset.analyticsPane?.charAt(0).toUpperCase()}${pane.dataset.analyticsPane?.slice(1)}`;
