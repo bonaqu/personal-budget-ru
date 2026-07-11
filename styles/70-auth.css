@@ -29,7 +29,7 @@
     radial-gradient(circle at 82% 18%, rgba(88, 166, 255, 0.08), transparent 24%);
   opacity: 0.9;
   pointer-events: none;
-  animation: authAmbientShift 16s ease-in-out infinite alternate;
+  animation: authAmbientShift 8s ease-out 1 both;
 }
 
 .auth-shell-card::after {

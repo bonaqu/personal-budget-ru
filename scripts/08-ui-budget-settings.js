@@ -852,8 +852,8 @@ Object.assign(UI, {
     const exportBtn = Utils.$("exportBtn");
     const importBtn = Utils.$("importBtn");
     const backupNote = Utils.$("backupNote");
-    const exportHelp = "Сохраняет свежую резервную копию бюджета. Удобно для переноса на другое устройство и спокойного восстановления в любой момент.";
-    const importHelp = "Загружает резервную копию и аккуратно заменяет текущие данные содержимым файла. Подходит для переноса и восстановления архива.";
+    const exportHelp = "Сохраняет резервную копию бюджета для переноса на другое устройство или восстановления.";
+    const importHelp = "Заменяет текущие данные содержимым резервной копии. Перед импортом создается контрольная копия.";
     Utils.setHelpText(exportBtn, exportHelp);
     Utils.setHelpText(importBtn, importHelp);
     Utils.setHelpText(backupNote, "Поддерживаются и резервные копии из прошлых версий приложения, если структура данных совместима.");

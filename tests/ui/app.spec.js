@@ -247,3 +247,74 @@ test("API console diagnostics include request id but never credentials", async (
   expect(output).not.toContain("DoNotLog-Secret-42");
   expect(output).not.toContain("console_probe");
 });
+
+test("goal cards fill the panel and premium motion respects user preferences", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/");
+  expect(await page.locator(".auth-shell-card").evaluate((element) => (
+    getComputedStyle(element, "::before").animationIterationCount
+  ))).toBe("1");
+
+  await page.locator("#startupLogin").fill("test1234");
+  await page.locator("#startupPassword").fill("test1234");
+  await page.locator("#startupLoginBtn").click();
+  await expect(page.locator("#appShell")).toBeVisible();
+  await page.locator('.sidebar-nav [data-tab-target="analyticsTab"]').click();
+
+  const layout = await page.locator("#goalList").evaluate((list) => {
+    const cards = Array.from(list.querySelectorAll(".goal-card"));
+    const listRect = list.getBoundingClientRect();
+    const widths = cards.map((card) => Math.round(card.getBoundingClientRect().width));
+    return {
+      cardCount: cards.length,
+      widths,
+      rightGap: Math.round(listRect.right - cards.at(-1).getBoundingClientRect().right),
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      progressRole: list.querySelector(".goal-progress")?.getAttribute("role")
+    };
+  });
+  expect(layout.cardCount).toBe(3);
+  expect(Math.min(...layout.widths)).toBeGreaterThan(380);
+  expect(layout.rightGap).toBeLessThanOrEqual(24);
+  expect(layout.overflow).toBeLessThanOrEqual(1);
+  expect(layout.progressRole).toBe("progressbar");
+
+  const goalCard = page.locator(".goal-card:not(.goal-card--adder)").first();
+  await goalCard.hover();
+  await page.waitForTimeout(180);
+  expect(await goalCard.evaluate((element) => getComputedStyle(element, "::after").opacity)).toBe("1");
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const reducedMotion = await goalCard.evaluate((element) => ({
+    transform: getComputedStyle(element).transform,
+    sheenDisplay: getComputedStyle(element, "::after").display,
+    transition: getComputedStyle(element).transitionDuration
+  }));
+  expect(reducedMotion.transform).toBe("none");
+  expect(reducedMotion.sheenDisplay).toBe("none");
+  expect(parseFloat(reducedMotion.transition)).toBeLessThanOrEqual(0.01);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobile = await page.locator("#goalList").evaluate((list) => ({
+    columns: getComputedStyle(list).gridTemplateColumns.split(" ").length,
+    maxHeight: getComputedStyle(list).maxHeight,
+    overflowY: getComputedStyle(list).overflowY,
+    overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
+  }));
+  expect(mobile.columns).toBe(1);
+  expect(mobile.maxHeight).toBe("none");
+  expect(mobile.overflowY).toBe("visible");
+  expect(mobile.overflow).toBeLessThanOrEqual(1);
+});
+
+test("backup copy is concise and keeps the safety explanation", async ({ page }) => {
+  await loginDemo(page);
+  await page.locator('.sidebar-nav [data-tab-target="settingsTab"]').click();
+  const note = await page.locator("#backupNote").innerText();
+  expect(note).toContain("восстановления");
+  expect(note).not.toContain("спокойного");
+  await expect(page.locator("#exportBtn")).toHaveAttribute(
+    "aria-label",
+    "Сохраняет резервную копию бюджета для переноса на другое устройство или восстановления."
+  );
+});

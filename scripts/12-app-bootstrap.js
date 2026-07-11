@@ -2162,7 +2162,7 @@ const App = {
           throw new Error("Не удалось создать контрольную копию перед импортом. Импорт отменен.");
         }
         Store.importBackup(parsed);
-        UI.setBackupStatus("Резервная копия загружена. Бюджет уже на месте.", "success");
+        UI.setBackupStatus("Бюджет восстановлен из резервной копии.", "success");
         UI.toast("Резервная копия загружена", "success");
       } catch (error) {
         const message = this.getBackupErrorMessage(error);

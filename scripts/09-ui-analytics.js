@@ -113,6 +113,7 @@ Object.assign(UI, {
     goals.forEach((goal) => {
       const card = Utils.createElement("article", "goal-card");
       card.style.setProperty("--goal-color", goal.color);
+      card.classList.toggle("goal-card--complete", goal.progress >= 100);
 
       const head = Utils.createElement("div", "goal-card__head");
       const titleBox = Utils.createElement("div", "goal-card__title");
@@ -128,6 +129,11 @@ Object.assign(UI, {
       head.append(titleBox);
 
       const progress = Utils.createElement("div", "goal-progress");
+      progress.setAttribute("role", "progressbar");
+      progress.setAttribute("aria-label", `Прогресс цели «${goal.name}»`);
+      progress.setAttribute("aria-valuemin", "0");
+      progress.setAttribute("aria-valuemax", "100");
+      progress.setAttribute("aria-valuenow", String(Math.min(100, Math.max(0, Math.round(goal.progress)))));
       const progressFill = Utils.createElement("div", "goal-progress__fill");
       progressFill.style.width = `${Math.min(100, goal.progress)}%`;
       const target = Utils.createElement("strong", "goal-card__target", Utils.formatMoney(goal.target));
