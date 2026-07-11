@@ -3,16 +3,19 @@
 const CONFIG = {
   API_BASE: "https://personal-budget-api.bonaqu.workers.dev",
   SESSION_KEY: "budget_flow_ru_session_v4",
-  QUEUE_KEY: "budget_flow_ru_pending_v3",
+  QUEUE_PREFIX: "budget_flow_ru_pending_v4_",
+  LEGACY_QUEUE_KEY: "budget_flow_ru_pending_v3",
   CACHE_PREFIX: "budget_flow_ru_cache_",
   LAST_SYNC_PREFIX: "budget_flow_ru_last_sync_",
+  REVISION_PREFIX: "budget_flow_ru_revision_",
   SIDEBAR_KEY: "budget_flow_ru_sidebar_collapsed_v1",
   BUDGET_FILTERS_KEY: "budget_flow_ru_budget_filters_collapsed_v1",
   JOURNAL_SORT_KEY: "budget_flow_ru_journal_sort_v3",
-  APP_VERSION: 3,
+  APP_VERSION: 4,
   MAX_BACKUP_BYTES: 8 * 1024 * 1024,
-  SESSION_IDLE_MINUTES: 30,
-  SESSION_ACTIVITY_THROTTLE_MS: 15000
+  SESSION_IDLE_MINUTES: 12 * 60,
+  SESSION_ACTIVITY_THROTTLE_MS: 15000,
+  SESSION_SERVER_TOUCH_MS: 5 * 60 * 1000
 };
 
 const LOCAL_TEST_CREDENTIALS = {
@@ -20,6 +23,7 @@ const LOCAL_TEST_CREDENTIALS = {
   password: "test1234"
 };
 const LOCAL_TEST_EXIT_FLAG = "budget:local-test-exit";
+const LEGACY_TIMESTAMP = "1970-01-01T00:00:00.000Z";
 
 const DEFAULT_CATEGORIES = [
   { id: "inc_salary", name: "Зарплата", type: "income", color: "#2ea043", limit: 0, preset: true },
@@ -311,11 +315,31 @@ const Utils = {
   },
 
   uid(prefix = "id") {
-    return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
+    const suffix = typeof crypto?.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
+    return `${prefix}_${suffix}`;
+  },
+
+  normalizeId(value, prefix = "id") {
+    const id = String(value ?? "").trim();
+    if (/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(id)) {
+      return id;
+    }
+    if (!id) {
+      return this.uid(prefix);
+    }
+    let hash = 2166136261;
+    for (let index = 0; index < id.length; index += 1) {
+      hash ^= id.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return `${prefix}_legacy_${(hash >>> 0).toString(36)}`;
   },
 
   todayISO() {
-    return new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   },
 
   nowISO() {
@@ -323,11 +347,13 @@ const Utils = {
   },
 
   isISODate(value) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value ?? ""))) {
+    const source = String(value ?? "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(source)) {
       return false;
     }
-    const date = new Date(`${value}T00:00:00`);
-    return !Number.isNaN(date.getTime());
+    const [year, month, day] = source.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
   },
 
   monthKey(dateValue) {
@@ -367,7 +393,11 @@ const Utils = {
   },
 
   parseAmount(value) {
-    const parsed = Number.parseFloat(String(value).replace(",", "."));
+    const normalized = String(value ?? "").trim().replace(/\s+/g, "").replace(",", ".");
+    if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) {
+      return 0;
+    }
+    const parsed = Number(normalized);
     return Number.isFinite(parsed) && parsed > 0 ? this.roundMoney(parsed) : 0;
   },
 
@@ -377,18 +407,23 @@ const Utils = {
       .replace(/[₽р]/gi, "")
       .replace(/\u2212/g, "-")
       .replace(",", ".");
-    const parsed = Number.parseFloat(normalized);
+    if (!/^[+-]?\d+(?:\.\d{1,2})?$/.test(normalized)) {
+      return 0;
+    }
+    const parsed = Number(normalized);
     return Number.isFinite(parsed) ? this.roundMoney(parsed) : 0;
   },
 
   safeNumber(value) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? Number(parsed) : 0;
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : 0;
+    }
+    return this.parseSignedAmount(value);
   },
 
   roundMoney(value) {
     const parsed = Number(value);
-    if (!Number.isFinite(parsed)) {
+    if (!Number.isFinite(parsed) || Math.abs(parsed) > Number.MAX_SAFE_INTEGER / 100) {
       return 0;
     }
     return Number(parsed.toFixed(2));
@@ -550,7 +585,8 @@ function defaultData() {
   return {
     meta: {
       version: CONFIG.APP_VERSION,
-      updatedAt: Utils.nowISO()
+      updatedAt: Utils.nowISO(),
+      tombstones: Object.fromEntries(TOMBSTONE_COLLECTIONS.map((collection) => [collection, []]))
     },
     profile: {
       theme: "dark",
@@ -821,7 +857,7 @@ function normalizeMonthMeta(raw) {
   return {
     start: Utils.roundMoney(Utils.safeNumber(raw?.start)),
     manualStart: Boolean(raw?.manualStart),
-    updatedAt: raw?.updatedAt || Utils.nowISO()
+    updatedAt: raw?.updatedAt || LEGACY_TIMESTAMP
   };
 }
 
@@ -837,11 +873,6 @@ function mergeMonthMeta(remoteMeta, localMeta) {
   }
   const remote = normalizeMonthMeta(remoteMeta);
   const local = normalizeMonthMeta(localMeta);
-  const remoteHasManualValue = Boolean(remote.manualStart) || Utils.roundMoney(remote.start || 0) !== 0;
-  const localHasManualValue = Boolean(local.manualStart) || Utils.roundMoney(local.start || 0) !== 0;
-  if (remoteHasManualValue !== localHasManualValue) {
-    return remoteHasManualValue ? remote : local;
-  }
   return recordTimestamp({ updatedAt: local.updatedAt }) >= recordTimestamp({ updatedAt: remote.updatedAt })
     ? local
     : remote;
@@ -856,12 +887,14 @@ function normalizeCategory(raw) {
     return null;
   }
   return {
-    id: String(raw.id ?? Utils.uid("cat")),
+    id: Utils.normalizeId(raw.id, "cat"),
     name,
     type: raw.type === "income" ? "income" : "expense",
     color: /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(raw.color ?? "")) ? raw.color : "#58a6ff",
     limit: Math.max(0, Utils.roundMoney(Utils.safeNumber(raw.limit))),
-    preset: Boolean(raw.preset)
+    preset: Boolean(raw.preset),
+    createdAt: raw.createdAt || LEGACY_TIMESTAMP,
+    updatedAt: raw.updatedAt || raw.createdAt || LEGACY_TIMESTAMP
   };
 }
 
@@ -996,15 +1029,15 @@ function normalizeTemplate(raw, categories) {
     categoryId = type === "income" ? "inc_other" : "exp_other";
   }
   return {
-    id: String(raw.id ?? Utils.uid("tpl")),
+    id: Utils.normalizeId(raw.id, "tpl"),
     desc,
     amount: Math.max(0, Utils.roundMoney(Utils.safeNumber(raw.amount))),
     type,
     categoryId,
     flowKind,
     bucket,
-    createdAt: raw.createdAt || Utils.nowISO(),
-    updatedAt: raw.updatedAt || raw.createdAt || Utils.nowISO()
+    createdAt: raw.createdAt || LEGACY_TIMESTAMP,
+    updatedAt: raw.updatedAt || raw.createdAt || LEGACY_TIMESTAMP
   };
 }
 
@@ -1025,14 +1058,14 @@ function normalizeFavorite(raw, categories) {
     categoryId = "exp_other";
   }
   return {
-    id: String(raw.id ?? Utils.uid("fav")),
+    id: Utils.normalizeId(raw.id, "fav"),
     desc,
     amount: Math.max(0, Utils.roundMoney(Utils.safeNumber(raw.amount))),
     type: "expense",
     categoryId,
     flowKind: "standard",
-    createdAt: raw.createdAt || Utils.nowISO(),
-    updatedAt: raw.updatedAt || raw.createdAt || Utils.nowISO()
+    createdAt: raw.createdAt || LEGACY_TIMESTAMP,
+    updatedAt: raw.updatedAt || raw.createdAt || LEGACY_TIMESTAMP
   };
 }
 
@@ -1047,12 +1080,14 @@ function normalizeWishlistItem(raw, fallbackPosition = null) {
     return null;
   }
   return {
-    id: String(raw.id ?? Utils.uid("wish")),
+    id: Utils.normalizeId(raw.id, "wish"),
     desc,
     amount,
     position: Number.isFinite(Number(raw.position))
       ? Number(raw.position)
-      : (Number.isFinite(Number(fallbackPosition)) ? Number(fallbackPosition) : Date.now() + Math.random())
+      : (Number.isFinite(Number(fallbackPosition)) ? Number(fallbackPosition) : Date.now() + Math.random()),
+    createdAt: raw.createdAt || LEGACY_TIMESTAMP,
+    updatedAt: raw.updatedAt || raw.createdAt || LEGACY_TIMESTAMP
   };
 }
 
@@ -1067,7 +1102,7 @@ function normalizeGoal(raw, fallbackPosition = null) {
   }
   const mode = ["balance", "saved"].includes(raw.mode) ? raw.mode : "balance";
   return {
-    id: String(raw.id ?? Utils.uid("goal")),
+    id: Utils.normalizeId(raw.id, "goal"),
     name,
     target,
     mode,
@@ -1077,8 +1112,8 @@ function normalizeGoal(raw, fallbackPosition = null) {
     position: Number.isFinite(Number(raw.position))
       ? Number(raw.position)
       : (Number.isFinite(Number(fallbackPosition)) ? Number(fallbackPosition) : Date.now() + Math.random()),
-    createdAt: raw.createdAt || Utils.nowISO(),
-    updatedAt: raw.updatedAt || Utils.nowISO()
+    createdAt: raw.createdAt || LEGACY_TIMESTAMP,
+    updatedAt: raw.updatedAt || raw.createdAt || LEGACY_TIMESTAMP
   };
 }
 
@@ -1102,58 +1137,6 @@ function pickPreferredRecord(left, right) {
   return right.index >= left.index ? right : left;
 }
 
-function buildTemplateSemanticKey(item, categories) {
-  const category = findCategory(categories, item?.categoryId);
-  return [
-    normalizeTemplateBucket(item?.bucket, item?.type, item?.flowKind),
-    item?.type || "",
-    item?.flowKind || "standard",
-    Utils.roundMoney(item?.amount || 0),
-    Utils.normalizeLookupKey(item?.desc),
-    Utils.normalizeLookupKey(category?.name || item?.categoryId || "")
-  ].join("|");
-}
-
-function buildFavoriteSemanticKey(item, categories) {
-  const category = findCategory(categories, item?.categoryId);
-  return [
-    "favorite",
-    Utils.roundMoney(item?.amount || 0),
-    Utils.normalizeLookupKey(item?.desc),
-    Utils.normalizeLookupKey(category?.name || item?.categoryId || "")
-  ].join("|");
-}
-
-function buildWishlistSemanticKey(item) {
-  return [
-    Utils.normalizeLookupKey(item?.desc),
-    Utils.roundMoney(item?.amount || 0)
-  ].join("|");
-}
-
-function buildTransactionSemanticKey(item, categories) {
-  const category = findCategory(categories, item?.categoryId);
-  return [
-    item?.type || "",
-    item?.flowKind || "standard",
-    item?.date || "",
-    Utils.roundMoney(item?.amount || 0),
-    Utils.normalizeLookupKey(item?.description),
-    Utils.normalizeLookupKey(category?.name || item?.categoryId || ""),
-    Number.isFinite(Number(item?.position)) ? Number(item.position) : ""
-  ].join("|");
-}
-
-function buildGoalSemanticKey(item) {
-  return [
-    Utils.normalizeLookupKey(item?.name),
-    Utils.roundMoney(item?.target || 0),
-    item?.mode || "balance",
-    Utils.roundMoney(item?.saved || 0),
-    Utils.normalizeLookupKey(item?.note || "")
-  ].join("|");
-}
-
 function averageExpenseThreshold(items) {
   const expenses = (Array.isArray(items) ? items : []).filter((item) => item?.type === "expense");
   if (!expenses.length) {
@@ -1162,9 +1145,8 @@ function averageExpenseThreshold(items) {
   return Utils.roundMoney(expenses.reduce((sum, item) => sum + Utils.safeNumber(item.amount), 0) / expenses.length);
 }
 
-// Когда один и тот же смысловой элемент приезжает из локального кэша и из облака с разными id,
-// мы оставляем более свежую версию и не плодим дубли в интерфейсе и бэкапах.
-function dedupeSemanticList(items, getSemanticKey) {
+// IDs are the stable identity boundary. Equal financial records with different IDs are legitimate.
+function dedupeById(items) {
   const byId = new Map();
   (Array.isArray(items) ? items : []).forEach((item, index) => {
     if (!item) {
@@ -1175,13 +1157,7 @@ function dedupeSemanticList(items, getSemanticKey) {
     byId.set(id, pickPreferredRecord(byId.get(id), candidate));
   });
 
-  const byMeaning = new Map();
-  Array.from(byId.values()).forEach((candidate, index) => {
-    const semanticKey = getSemanticKey(candidate.record) || `__unique_${index}`;
-    byMeaning.set(semanticKey, pickPreferredRecord(byMeaning.get(semanticKey), candidate));
-  });
-
-  return Array.from(byMeaning.values())
+  return Array.from(byId.values())
     .sort((left, right) => left.index - right.index)
     .map((candidate) => candidate.record);
 }
@@ -1225,7 +1201,7 @@ function normalizeTransaction(raw, categories) {
   }
 
   return {
-    id: String(raw.id ?? Utils.uid("tx")),
+    id: Utils.normalizeId(raw.id, "tx"),
     type,
     flowKind: raw.flowKind === "debt" || raw.flowKind === "recurring" ? raw.flowKind : "standard",
     amount,
@@ -1233,8 +1209,8 @@ function normalizeTransaction(raw, categories) {
     description: String(raw.description ?? raw.desc ?? "").trim().slice(0, 200),
     date: Utils.isISODate(raw.date) ? raw.date : Utils.todayISO(),
     position: Number.isFinite(Number(raw.position)) ? Number(raw.position) : new Date(raw.createdAt || Utils.nowISO()).getTime() + Math.random(),
-    createdAt: raw.createdAt || Utils.nowISO(),
-    updatedAt: raw.updatedAt || Utils.nowISO()
+    createdAt: raw.createdAt || LEGACY_TIMESTAMP,
+    updatedAt: raw.updatedAt || raw.createdAt || LEGACY_TIMESTAMP
   };
 }
 
@@ -1253,7 +1229,7 @@ function collectLegacyCategoryUsage(raw) {
   };
 
   Object.entries(raw || {})
-    .filter(([key]) => /^\d{4}-\d{2}$/.test(key))
+    .filter(([key]) => /^\d{4}-(0[1-9]|1[0-2])$/.test(key))
     .forEach(([, monthData]) => {
       ["incomes"].forEach((section) => {
         (monthData?.[section] || []).forEach((item) => {
@@ -1333,7 +1309,7 @@ function summarizeMeaningfulUserData(data) {
 }
 
 function summarizeLegacyBackup(raw) {
-  const monthKeys = Object.keys(raw || {}).filter((key) => /^\d{4}-\d{2}$/.test(key));
+  const monthKeys = Object.keys(raw || {}).filter((key) => /^\d{4}-(0[1-9]|1[0-2])$/.test(key));
   return {
     months: monthKeys.length,
     categories: Array.isArray(raw?.settings?.categories) ? raw.settings.categories.length : 0,
@@ -1403,8 +1379,10 @@ function comparableDataSignature(raw) {
     profile: {
       theme: data.profile.theme
     },
+    tombstones: data.meta.tombstones,
     categories: data.settings.categories
       .map((item) => ({
+        id: item.id,
         name: item.name,
         type: item.type,
         color: item.color,
@@ -1413,6 +1391,7 @@ function comparableDataSignature(raw) {
       .sort((a, b) => a.type.localeCompare(b.type, "ru") || a.name.localeCompare(b.name, "ru")),
     templates: data.settings.templates
       .map((item) => ({
+        id: item.id,
         bucket: normalizeTemplateBucket(item.bucket, item.type, item.flowKind),
         desc: item.desc,
         amount: Utils.roundMoney(item.amount),
@@ -1423,6 +1402,7 @@ function comparableDataSignature(raw) {
       .sort((a, b) => a.desc.localeCompare(b.desc, "ru") || a.amount - b.amount),
     favorites: data.settings.favorites
       .map((item) => ({
+        id: item.id,
         desc: item.desc,
         amount: Utils.roundMoney(item.amount),
         category: categories.get(item.categoryId)?.name || "",
@@ -1434,6 +1414,7 @@ function comparableDataSignature(raw) {
       .slice()
       .sort((a, b) => Number(a.position) - Number(b.position))
       .map((item) => ({
+        id: item.id,
         name: item.name,
         target: Utils.roundMoney(item.target),
         mode: item.mode,
@@ -1445,6 +1426,7 @@ function comparableDataSignature(raw) {
       .slice()
       .sort((a, b) => Number(a.position) - Number(b.position))
       .map((item) => ({
+        id: item.id,
         desc: item.desc,
         amount: Utils.roundMoney(item.amount)
       })),
@@ -1471,6 +1453,7 @@ function comparableDataSignature(raw) {
           ? "incomes"
           : (item.flowKind === "debt" ? "debts" : (item.flowKind === "recurring" ? "recurring" : "expenses"));
         signature.months[monthKey][bucket].push({
+          id: item.id,
           day: Number(item.date.slice(-2)),
           amount: Utils.roundMoney(item.amount),
           desc: item.description,
@@ -1492,23 +1475,27 @@ function validateBackupPayload(raw) {
     throw new Error("Файл бэкапа должен содержать JSON-объект.");
   }
 
-  const legacy = isLegacyBackupShape(raw);
-  const current = Array.isArray(raw.transactions) || raw.profile || raw.settings || raw.months;
+  const envelope = raw?.format === "personal-budget-tracker" && raw?.data && typeof raw.data === "object";
+  const payload = envelope ? raw.data : raw;
+  const legacy = isLegacyBackupShape(payload);
+  const current = Array.isArray(payload.transactions) || payload.profile || payload.settings || payload.months;
 
   if (!legacy && !current) {
     throw new Error("Не удалось распознать формат бэкапа.");
   }
 
+  validateBackupDataTypes(payload, { legacy });
+
   const summary = legacy
-    ? summarizeLegacyBackup(raw)
+    ? summarizeLegacyBackup(payload)
     : {
-        months: Object.keys(raw?.months || {}).length,
-        transactions: Array.isArray(raw?.transactions) ? raw.transactions.length : 0,
-        categories: Array.isArray(raw?.settings?.categories) ? raw.settings.categories.length : 0,
-        templates: Array.isArray(raw?.settings?.templates) ? raw.settings.templates.length : 0,
-        favorites: Array.isArray(raw?.settings?.favorites) ? raw.settings.favorites.length : 0,
-        wishlist: Array.isArray(raw?.settings?.wishlist) ? raw.settings.wishlist.length : 0,
-        goals: Array.isArray(raw?.settings?.goals) ? raw.settings.goals.length : 0
+        months: Object.keys(payload?.months || {}).length,
+        transactions: Array.isArray(payload?.transactions) ? payload.transactions.length : 0,
+        categories: Array.isArray(payload?.settings?.categories) ? payload.settings.categories.length : 0,
+        templates: Array.isArray(payload?.settings?.templates) ? payload.settings.templates.length : 0,
+        favorites: Array.isArray(payload?.settings?.favorites) ? payload.settings.favorites.length : 0,
+        wishlist: Array.isArray(payload?.settings?.wishlist) ? payload.settings.wishlist.length : 0,
+        goals: Array.isArray(payload?.settings?.goals) ? payload.settings.goals.length : 0
       };
   const totalItems = Object.values(summary).reduce((sum, value) => sum + value, 0);
 
@@ -1517,13 +1504,121 @@ function validateBackupPayload(raw) {
   }
 
   return {
-    format: legacy ? "legacy" : "current",
+    format: legacy ? "legacy" : (envelope ? "versioned" : "current"),
     summary
   };
 }
 
+function validateBackupDataTypes(data, { legacy = false } = {}) {
+  const ensureObject = (value, label) => {
+    if (value != null && (typeof value !== "object" || Array.isArray(value))) {
+      throw new Error(`${label}: ожидался объект.`);
+    }
+  };
+  const ensureArray = (value, label) => {
+    if (value != null && !Array.isArray(value)) {
+      throw new Error(`${label}: ожидался список.`);
+    }
+  };
+  const validateAmount = (value, label) => {
+    if (value == null || value === "") return;
+    if ((typeof value !== "number" && typeof value !== "string") || Utils.parseSignedAmount(value) < 0) {
+      throw new Error(`${label}: некорректная денежная сумма.`);
+    }
+    const normalized = String(value).trim().replace(",", ".");
+    if (!/^\d+(?:\.\d{1,2})?$/.test(normalized) || Math.abs(Number(normalized)) > Number.MAX_SAFE_INTEGER / 100) {
+      throw new Error(`${label}: сумма должна быть неотрицательным числом максимум с двумя знаками после запятой.`);
+    }
+  };
+  const validateIds = (items, label) => {
+    ensureArray(items, label);
+    const ids = new Set();
+    (items || []).forEach((item, index) => {
+      ensureObject(item, `${label}[${index}]`);
+      if (item?.id != null) {
+        const id = String(item.id);
+        if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(id)) {
+          throw new Error(`${label}[${index}].id: недопустимый идентификатор.`);
+        }
+        if (ids.has(id)) throw new Error(`${label}: повторяется ID «${id}».`);
+        ids.add(id);
+      }
+      if (Object.prototype.hasOwnProperty.call(item || {}, "amount")) validateAmount(item.amount, `${label}[${index}].amount`);
+    });
+  };
+
+  ensureObject(data?.settings, "settings");
+  if (!legacy) {
+    ensureObject(data?.months, "months");
+    Object.keys(data?.months || {}).forEach((monthKey) => {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthKey)) throw new Error(`months.${monthKey}: некорректный месяц.`);
+    });
+    validateIds(data?.transactions, "transactions");
+    (data?.transactions || []).forEach((item, index) => {
+      if (!Utils.isISODate(item.date)) throw new Error(`transactions[${index}].date: некорректная дата.`);
+      if (!['income', 'expense'].includes(item.type)) throw new Error(`transactions[${index}].type: некорректный тип.`);
+    });
+  } else {
+    Object.entries(data || {}).filter(([key]) => /^\d{4}-\d{2}$/.test(key)).forEach(([monthKey, month]) => {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthKey)) throw new Error(`Некорректный месяц ${monthKey}.`);
+      ["incomes", "expenses", "debts", "recurring"].forEach((section) => validateIds(month?.[section], `${monthKey}.${section}`));
+    });
+  }
+  validateIds(data?.settings?.categories, "settings.categories");
+  validateIds(data?.settings?.templates, "settings.templates");
+  validateIds(data?.settings?.favorites, "settings.favorites");
+  validateIds(data?.settings?.wishlist || data?.wishlist, "wishlist");
+  validateIds(data?.settings?.goals, "settings.goals");
+}
+
 function isLegacyBackupShape(data) {
-  return data && typeof data === "object" && !Array.isArray(data.transactions) && Object.keys(data).some((key) => /^\d{4}-\d{2}$/.test(key));
+  return data && typeof data === "object" && !Array.isArray(data.transactions) && Object.keys(data).some((key) => /^\d{4}-(0[1-9]|1[0-2])$/.test(key));
+}
+
+const TOMBSTONE_COLLECTIONS = ["transactions", "categories", "templates", "favorites", "wishlist", "goals"];
+
+function normalizeTombstones(raw) {
+  const source = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  return Object.fromEntries(TOMBSTONE_COLLECTIONS.map((collection) => {
+    const newestById = new Map();
+    (Array.isArray(source[collection]) ? source[collection] : []).forEach((item) => {
+      const id = Utils.normalizeId(item?.id, collection.slice(0, 4) || "item");
+      const deletedAt = Utils.isISODate(String(item?.deletedAt || "").slice(0, 10)) && !Number.isNaN(Date.parse(item.deletedAt))
+        ? item.deletedAt
+        : null;
+      if (!deletedAt) return;
+      const previous = newestById.get(id);
+      if (!previous || Date.parse(deletedAt) > Date.parse(previous.deletedAt)) {
+        newestById.set(id, { id, deletedAt });
+      }
+    });
+    return [collection, Array.from(newestById.values())];
+  }));
+}
+
+function mergeTombstones(...sources) {
+  const combined = Object.fromEntries(TOMBSTONE_COLLECTIONS.map((collection) => [collection, []]));
+  sources.forEach((source) => {
+    const normalized = normalizeTombstones(source);
+    TOMBSTONE_COLLECTIONS.forEach((collection) => combined[collection].push(...normalized[collection]));
+  });
+  return normalizeTombstones(combined);
+}
+
+function applyTombstones(items, tombstones) {
+  const deleted = new Map((tombstones || []).map((item) => [item.id, Date.parse(item.deletedAt) || 0]));
+  return (Array.isArray(items) ? items : []).filter((item) => {
+    const deletedAt = deleted.get(item.id);
+    return !deletedAt || recordTimestamp(item) > deletedAt;
+  });
+}
+
+function addTombstone(draft, collection, id, deletedAt = Utils.nowISO()) {
+  if (!TOMBSTONE_COLLECTIONS.includes(collection) || !id) return;
+  draft.meta ||= {};
+  draft.meta.tombstones = normalizeTombstones(draft.meta.tombstones);
+  draft.meta.tombstones[collection].push({ id: Utils.normalizeId(id, collection.slice(0, 4)), deletedAt });
+  draft.meta.tombstones = normalizeTombstones(draft.meta.tombstones);
 }
 
 function migrateLegacyBackup(raw) {
@@ -1613,7 +1708,7 @@ function migrateLegacyBackup(raw) {
   };
 
   Object.entries(raw || {})
-    .filter(([key]) => /^\d{4}-\d{2}$/.test(key))
+    .filter(([key]) => /^\d{4}-(0[1-9]|1[0-2])$/.test(key))
     .forEach(([monthKey, monthData]) => {
       next.months[monthKey] = normalizeMonthMeta(monthData);
       pushLegacyItems(monthKey, monthData?.incomes, "income", "standard", "Зарплата");
@@ -1627,17 +1722,24 @@ function migrateLegacyBackup(raw) {
 }
 
 function normalizeData(raw) {
+  if (raw?.format === "personal-budget-tracker" && raw?.data && typeof raw.data === "object") {
+    raw = raw.data;
+  }
   if (isLegacyBackupShape(raw)) {
     return migrateLegacyBackup(raw);
   }
 
   const base = defaultData();
   const profile = raw?.profile && typeof raw.profile === "object" ? raw.profile : {};
+  const tombstones = normalizeTombstones(raw?.meta?.tombstones);
   const deletedPresetCategoryIds = normalizeDeletedPresetCategoryIds(raw?.settings?.deletedPresetCategoryIds);
-  const categories = mergeCategories(raw?.settings?.categories, { __mergeOptions: true, deletedPresetCategoryIds });
+  const categories = applyTombstones(
+    mergeCategories(raw?.settings?.categories, { __mergeOptions: true, deletedPresetCategoryIds }),
+    tombstones.categories
+  );
   const months = {};
   Object.entries(raw?.months || {}).forEach(([monthKey, monthMeta]) => {
-    if (/^\d{4}-\d{2}$/.test(monthKey)) {
+    if (/^\d{4}-(0[1-9]|1[0-2])$/.test(monthKey)) {
       months[monthKey] = normalizeMonthMeta(monthMeta);
     }
   });
@@ -1645,39 +1747,39 @@ function normalizeData(raw) {
   const rawTransactions = Array.isArray(raw?.transactions)
     ? raw.transactions.map((item) => normalizeTransaction(item, categories)).filter(Boolean)
     : [];
-  const transactions = dedupeSemanticList(rawTransactions, (item) => buildTransactionSemanticKey(item, categories));
+  const transactions = applyTombstones(
+    dedupeById(rawTransactions),
+    tombstones.transactions
+  );
 
   transactions.forEach((transaction) => ensureDefaultMonthMeta(months, transaction.date.slice(0, 7)));
 
-  const templates = dedupeSemanticList(
+  const templates = applyTombstones(dedupeById(
     Array.isArray(raw?.settings?.templates)
       ? raw.settings.templates.map((item) => normalizeTemplate(item, categories)).filter(Boolean)
-      : [],
-    (item) => buildTemplateSemanticKey(item, categories)
-  );
-  const favorites = dedupeSemanticList(
+      : []
+  ), tombstones.templates);
+  const favorites = applyTombstones(dedupeById(
     Array.isArray(raw?.settings?.favorites)
       ? raw.settings.favorites.map((item) => normalizeFavorite(item, categories)).filter(Boolean)
-      : [],
-    (item) => buildFavoriteSemanticKey(item, categories)
-  );
-  const wishlist = dedupeSemanticList(
+      : []
+  ), tombstones.favorites);
+  const wishlist = applyTombstones(dedupeById(
     Array.isArray(raw?.settings?.wishlist)
       ? raw.settings.wishlist.map((item, index) => normalizeWishlistItem(item, index + 1)).filter(Boolean)
-      : [],
-    (item) => buildWishlistSemanticKey(item)
-  );
-  const goals = dedupeSemanticList(
+      : []
+  ), tombstones.wishlist);
+  const goals = applyTombstones(dedupeById(
     Array.isArray(raw?.settings?.goals)
       ? raw.settings.goals.map((item, index) => normalizeGoal(item, index + 1)).filter(Boolean)
-      : [],
-    (item) => buildGoalSemanticKey(item)
-  );
+      : []
+  ), tombstones.goals);
 
   return {
     meta: {
       version: CONFIG.APP_VERSION,
-      updatedAt: raw?.meta?.updatedAt || base.meta.updatedAt
+      updatedAt: raw?.meta?.updatedAt || base.meta.updatedAt,
+      tombstones
     },
     profile: {
       theme: profile.theme === "light" ? "light" : "dark",
@@ -1700,6 +1802,7 @@ function normalizeData(raw) {
 function mergeData(remoteRaw, localRaw) {
   const remote = normalizeData(remoteRaw);
   const local = normalizeData(localRaw);
+  const tombstones = mergeTombstones(remote.meta.tombstones, local.meta.tombstones);
   const deletedPresetCategoryIds = normalizeDeletedPresetCategoryIds([
     ...(remote.settings.deletedPresetCategoryIds || []),
     ...(local.settings.deletedPresetCategoryIds || [])
@@ -1709,9 +1812,8 @@ function mergeData(remoteRaw, localRaw) {
     local.settings.categories,
     { __mergeOptions: true, deletedPresetCategoryIds }
   );
-  const transactions = dedupeSemanticList(
-    [...remote.transactions, ...local.transactions].map((tx) => normalizeTransaction(tx, categories)).filter(Boolean),
-    (item) => buildTransactionSemanticKey(item, categories)
+  const transactions = dedupeById(
+    [...remote.transactions, ...local.transactions].map((tx) => normalizeTransaction(tx, categories)).filter(Boolean)
   );
 
   // Для offline-first логики месячные метаданные тоже объединяем по свежести,
@@ -1726,7 +1828,8 @@ function mergeData(remoteRaw, localRaw) {
   return normalizeData({
     meta: {
       version: CONFIG.APP_VERSION,
-      updatedAt: new Date(Math.max(new Date(remote.meta.updatedAt).getTime(), new Date(local.meta.updatedAt).getTime(), Date.now())).toISOString()
+      updatedAt: new Date(Math.max(new Date(remote.meta.updatedAt).getTime(), new Date(local.meta.updatedAt).getTime(), Date.now())).toISOString(),
+      tombstones
     },
     profile: {
       theme: new Date(local.meta.updatedAt).getTime() >= new Date(remote.meta.updatedAt).getTime() ? local.profile.theme : remote.profile.theme
@@ -1734,22 +1837,10 @@ function mergeData(remoteRaw, localRaw) {
     settings: {
       categories,
       deletedPresetCategoryIds,
-      templates: dedupeSemanticList(
-        [...remote.settings.templates, ...local.settings.templates],
-        (item) => buildTemplateSemanticKey(item, categories)
-      ),
-      favorites: dedupeSemanticList(
-        [...remote.settings.favorites, ...local.settings.favorites],
-        (item) => buildFavoriteSemanticKey(item, categories)
-      ),
-      wishlist: dedupeSemanticList(
-        [...remote.settings.wishlist, ...local.settings.wishlist],
-        (item) => buildWishlistSemanticKey(item)
-      ),
-      goals: dedupeSemanticList(
-        [...(remote.settings.goals || []), ...(local.settings.goals || [])],
-        (item) => buildGoalSemanticKey(item)
-      )
+      templates: dedupeById([...remote.settings.templates, ...local.settings.templates]),
+      favorites: dedupeById([...remote.settings.favorites, ...local.settings.favorites]),
+      wishlist: dedupeById([...remote.settings.wishlist, ...local.settings.wishlist]),
+      goals: dedupeById([...(remote.settings.goals || []), ...(local.settings.goals || [])])
     },
     months,
     transactions

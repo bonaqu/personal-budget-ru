@@ -5,11 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0b0f14">
   <meta name="description" content="Personal Budget Tracker для России: доходы, расходы, быстрые сценарии, цели и аналитика по месяцам.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://personal-budget-api.bonaqu.workers.dev; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+  <meta name="referrer" content="no-referrer">
   <title>Personal Budget Tracker</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='3' y1='2' x2='21' y2='22' gradientUnits='userSpaceOnUse'%3E%3Cstop stop-color='%23465360'/%3E%3Cstop offset='0.56' stop-color='%23273342'/%3E%3Cstop offset='1' stop-color='%2317232d'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='1.5' y='1.5' width='21' height='21' rx='6.75' fill='url(%23bg)' stroke='rgba(255,255,255,0.16)'/%3E%3Crect x='5.05' y='11.25' width='2.6' height='4.75' rx='1.3' fill='%23d7ba78'/%3E%3Crect x='9.55' y='8.6' width='2.6' height='7.4' rx='1.3' fill='%236bbf66'/%3E%3Crect x='14.05' y='5.95' width='2.6' height='10.05' rx='1.3' fill='%237eaeff'/%3E%3Cpath d='M5.1 16.55H16.85' stroke='rgba(244,251,255,0.2)' stroke-width='1' stroke-linecap='round'/%3E%3Cpath d='M5.45 13.1C7.78 12.22 9.46 11.11 10.84 9.82C12.09 8.61 13.17 7.39 16.03 6.48' stroke='%23eef3fb' stroke-width='1.45' stroke-linecap='round'/%3E%3Ccircle cx='16.22' cy='6.48' r='1.4' fill='%23eef3fb'/%3E%3C/svg%3E">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles/00-foundation.css">
   <link rel="stylesheet" href="styles/10-foundation-responsive.css">
   <link rel="stylesheet" href="styles/20-analytics.css">
@@ -18,20 +17,13 @@
   <link rel="stylesheet" href="styles/60-budget.css">
   <link rel="stylesheet" href="styles/70-auth.css">
   <link rel="stylesheet" href="styles/80-product-polish.css">
-  <script src="scripts/01-core.js" defer></script>
-  <script src="scripts/02-auth-storage.js" defer></script>
-  <script src="scripts/03-api.js" defer></script>
-  <script src="scripts/04-store.js" defer></script>
-  <script src="scripts/05-sync.js" defer></script>
-  <script src="scripts/06-ui-core.js" defer></script>
-  <script src="scripts/07-ui-shell.js" defer></script>
-  <script src="scripts/08-ui-budget-settings.js" defer></script>
-  <script src="scripts/09-ui-analytics.js" defer></script>
-  <script src="scripts/10-ui-months.js" defer></script>
-  <script src="scripts/11-ui-rendering.js" defer></script>
-  <script src="scripts/12-app-bootstrap.js" defer></script>
+  <script vite-ignore src="app.bundle.js" defer></script>
 </head>
 <body class="app-booting" data-theme="dark">
+  <aside class="update-banner" id="updateBanner" role="status" aria-live="polite" hidden>
+    <span>Доступна новая версия приложения. Локальные изменения уже сохранены.</span>
+    <button class="btn btn--primary" id="applyUpdateBtn" type="button">Обновить</button>
+  </aside>
   <div class="bg-layer" aria-hidden="true">
     <div class="bg-layer__orb bg-layer__orb--green"></div>
     <div class="bg-layer__orb bg-layer__orb--blue"></div>
@@ -102,6 +94,7 @@
           <div class="auth-card__actions">
             <button class="btn btn--primary btn--block" id="startupLoginBtn" type="submit">Войти</button>
             <button class="btn btn--secondary btn--block" id="startupRegisterBtn" type="button">Создать аккаунт</button>
+            <button class="btn btn--ghost btn--block" id="startupRecoverBtn" type="button">Восстановить пароль</button>
           </div>
           <div class="auth-form__status" id="startupAuthStatus" role="status" aria-live="polite" aria-atomic="true" hidden></div>
         </form>
@@ -1069,6 +1062,7 @@
         <div class="auth-card__actions">
           <button class="btn btn--primary btn--block" id="modalLoginBtn" type="submit">Войти</button>
           <button class="btn btn--secondary btn--block" id="modalRegisterBtn" type="button">Создать аккаунт</button>
+          <button class="btn btn--ghost btn--block" id="modalRecoverBtn" type="button">Восстановить пароль</button>
         </div>
         <div class="auth-form__status" id="modalAuthStatus" role="status" aria-live="polite" aria-atomic="true" hidden></div>
       </form>
@@ -1119,8 +1113,11 @@
           <div class="account-menu__actions">
             <button class="btn btn--primary btn--block" id="accountSyncNowBtn" type="button">Синхронизировать сейчас</button>
           <button class="btn btn--ghost btn--block" id="accountPasswordInfoBtn" type="button">Смена пароля</button>
-          <p class="account-menu__hint" id="accountPasswordHint">Смену пароля добавим чуть позже.</p>
+          <button class="btn btn--ghost btn--block" id="accountSessionsBtn" type="button">Активные устройства</button>
+          <button class="btn btn--ghost btn--block" id="accountRecoveryCodeBtn" type="button">Новый код восстановления</button>
+          <p class="account-menu__hint" id="accountPasswordHint">Можно использовать до трех устройств. Неактивная 12 часов сессия завершается автоматически.</p>
           <button class="btn btn--secondary btn--block" id="accountLogoutBtn" type="button">Выйти из аккаунта</button>
+          <button class="btn btn--ghost btn--block is-hidden" id="demoResetBtn" type="button">Сбросить демо сейчас</button>
         </div>
       </div>
     </div>
@@ -1214,6 +1211,72 @@
           <button class="btn btn--primary btn--block" type="submit">Сохранить изменения</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div class="modal" id="recoveryCodeModal" aria-hidden="true">
+    <div class="modal__backdrop" data-close-modal="recoveryCodeModal"></div>
+    <div class="modal__dialog glass-card modal__dialog--sm" role="dialog" aria-modal="true" aria-labelledby="recoveryCodeTitle">
+      <button class="modal__close" type="button" data-close-modal="recoveryCodeModal" aria-label="Закрыть">×</button>
+      <div class="modal__head">
+        <p class="eyebrow">Одноразовый секрет</p>
+        <h3 id="recoveryCodeTitle">Сохраните код восстановления</h3>
+        <p class="modal__subtext">Код не хранится в открытом виде и больше не будет показан. После восстановления он автоматически заменится.</p>
+      </div>
+      <p class="recovery-code" id="recoveryCodeValue" aria-label="Код восстановления"></p>
+      <button class="btn btn--primary btn--block" id="downloadRecoveryCodeBtn" type="button">Сохранить код в файл</button>
+      <button class="btn btn--secondary btn--block" type="button" data-close-modal="recoveryCodeModal">Я сохранил код</button>
+    </div>
+  </div>
+
+  <div class="modal" id="passwordChangeModal" aria-hidden="true">
+    <div class="modal__backdrop" data-close-modal="passwordChangeModal"></div>
+    <div class="modal__dialog glass-card modal__dialog--sm" role="dialog" aria-modal="true" aria-labelledby="passwordChangeTitle">
+      <button class="modal__close" type="button" data-close-modal="passwordChangeModal" aria-label="Закрыть">×</button>
+      <div class="modal__head">
+        <p class="eyebrow">Безопасность</p>
+        <h3 id="passwordChangeTitle">Сменить пароль</h3>
+        <p class="modal__subtext">После смены пароля остальные устройства выйдут из аккаунта.</p>
+      </div>
+      <form id="passwordChangeForm" class="stack-form">
+        <label class="field"><span class="field__label">Текущий пароль</span><input id="currentPassword" type="password" autocomplete="current-password" required></label>
+        <label class="field"><span class="field__label">Новый пароль</span><input id="newPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required></label>
+        <div class="auth-form__status" id="passwordChangeStatus" role="status" aria-live="polite" hidden></div>
+        <button class="btn btn--primary btn--block" type="submit">Сменить пароль</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="passwordRecoveryModal" aria-hidden="true">
+    <div class="modal__backdrop" data-close-modal="passwordRecoveryModal"></div>
+    <div class="modal__dialog glass-card modal__dialog--sm" role="dialog" aria-modal="true" aria-labelledby="passwordRecoveryTitle">
+      <button class="modal__close" type="button" data-close-modal="passwordRecoveryModal" aria-label="Закрыть">×</button>
+      <div class="modal__head">
+        <p class="eyebrow">Восстановление</p>
+        <h3 id="passwordRecoveryTitle">Задать новый пароль</h3>
+        <p class="modal__subtext">Нужен код, сохраненный при регистрации или при последнем обновлении кода.</p>
+      </div>
+      <form id="passwordRecoveryForm" class="stack-form">
+        <label class="field"><span class="field__label">Логин</span><input id="recoveryLogin" type="text" autocomplete="username" required></label>
+        <label class="field"><span class="field__label">Код восстановления</span><input id="recoveryCode" type="text" autocomplete="one-time-code" required></label>
+        <label class="field"><span class="field__label">Новый пароль</span><input id="recoveryNewPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required></label>
+        <div class="auth-form__status" id="passwordRecoveryStatus" role="status" aria-live="polite" hidden></div>
+        <button class="btn btn--primary btn--block" type="submit">Восстановить доступ</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="sessionsModal" aria-hidden="true">
+    <div class="modal__backdrop" data-close-modal="sessionsModal"></div>
+    <div class="modal__dialog glass-card modal__dialog--sm" role="dialog" aria-modal="true" aria-labelledby="sessionsTitle">
+      <button class="modal__close" type="button" data-close-modal="sessionsModal" aria-label="Закрыть">×</button>
+      <div class="modal__head">
+        <p class="eyebrow">Безопасность</p>
+        <h3 id="sessionsTitle">Активные устройства</h3>
+        <p class="modal__subtext">Одновременно доступны не более трех сессий.</p>
+      </div>
+      <div id="sessionsList" class="stack-form" role="list"></div>
+      <button class="btn btn--secondary btn--block" id="revokeOtherSessionsBtn" type="button">Завершить сессии на других устройствах</button>
     </div>
   </div>
 

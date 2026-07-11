@@ -465,7 +465,10 @@ Object.assign(UI, {
       if (!root) {
         return;
       }
-      const items = Store.getSectionTransactions(section, Store.viewMonth);
+      const allItems = Store.getSectionTransactions(section, Store.viewMonth);
+      const visibleKey = `${Store.viewMonth}:${section}`;
+      const visibleCount = this.journalVisibleCounts.get(visibleKey) || this.journalPageSize;
+      const items = allItems.slice(0, visibleCount);
       const meta = SECTION_META[section];
       const sectionSignature = items.length
         ? JSON.stringify({
@@ -516,7 +519,9 @@ Object.assign(UI, {
           isFirst: index === 0,
           limitMap
         });
-      }).join("");
+      }).join("") + (allItems.length > items.length
+        ? `<button class="btn btn--secondary btn--block" type="button" data-journal-action="load-more" data-section="${section}">Показать еще ${Math.min(this.journalPageSize, allItems.length - items.length)} из ${allItems.length}</button>`
+        : "");
       root.dataset.renderSignature = sectionSignature;
     });
 
@@ -948,13 +953,14 @@ Object.assign(UI, {
       Store.filters.dateTo
     );
 
-    const transactions = Store.getFilteredTransactions();
-    const totals = Store.totalsFor(transactions);
+    const filteredTransactions = Store.getFilteredTransactions();
+    const transactions = filteredTransactions.slice(0, this.filteredVisibleCount);
+    const totals = Store.totalsFor(filteredTransactions);
     const listSummary = Utils.$("listSummary");
     if (listSummary) {
       listSummary.textContent = hasActiveFilters
-        ? transactions.length
-          ? `${transactions.length} операций · ${Utils.formatMoney(totals.balance)} · ${Store.filters.period === "all" ? "вся история" : "активный месяц"}`
+        ? filteredTransactions.length
+          ? `${filteredTransactions.length} операций · ${Utils.formatMoney(totals.balance)} · ${Store.filters.period === "all" ? "вся история" : "активный месяц"}`
           : "Нет операций под текущие фильтры"
         : "Фильтры выключены. Ниже показан весь бюджет месяца по разделам.";
     }
@@ -1039,6 +1045,13 @@ Object.assign(UI, {
       card.append(main, categoryPill, amount, actions);
       fragment.appendChild(card);
     });
+
+    if (filteredTransactions.length > transactions.length) {
+      const more = Utils.createElement("button", "btn btn--secondary btn--block", `Показать еще ${Math.min(this.filteredPageSize, filteredTransactions.length - transactions.length)} из ${filteredTransactions.length}`);
+      more.type = "button";
+      more.dataset.action = "load-more-filtered";
+      fragment.appendChild(more);
+    }
 
     root.replaceChildren(fragment);
   },

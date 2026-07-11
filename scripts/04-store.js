@@ -1,5 +1,6 @@
 const Store = {
   data: defaultData(),
+  remoteRevision: 0,
   searchIndex: new Map(),
   activeTab: "overviewTab",
   viewMonth: Utils.monthKey(new Date()),
@@ -30,6 +31,7 @@ const Store = {
 
   loadLocal(login = null) {
     this.data = Storage.loadCache(login);
+    this.remoteRevision = login ? Storage.loadRevision(login) : 0;
     this.ensureStructure();
   },
 
@@ -63,7 +65,7 @@ const Store = {
   },
 
   saveLocal() {
-    Storage.saveCache(Auth.getLogin(), this.data);
+    return Storage.saveCache(Auth.getLogin(), this.data);
   },
 
   setData(nextData, { save = true } = {}) {
@@ -167,7 +169,9 @@ const Store = {
 
   captureSnapshot() {
     return {
-      data: Utils.clone(this.data),
+      // Store.data заменяется целиком при mutate/setData, поэтому ссылка на предыдущее
+      // состояние остается неизменной и не требует второго полного клонирования.
+      data: this.data,
       activeTab: this.activeTab,
       viewMonth: this.viewMonth,
       detailMonth: this.detailMonth
@@ -176,7 +180,8 @@ const Store = {
 
   pushHistory(snapshot) {
     this.historyPast.push(snapshot);
-    if (this.historyPast.length > this.historyLimit) {
+    const effectiveLimit = this.data.transactions.length > 1000 ? 20 : this.historyLimit;
+    if (this.historyPast.length > effectiveLimit) {
       this.historyPast.shift();
     }
     this.historyFuture = [];
@@ -823,6 +828,7 @@ const Store = {
   deleteGoal(goalId) {
     this.mutate((draft) => {
       draft.settings.goals = (draft.settings.goals || []).filter((item) => item.id !== goalId);
+      addTombstone(draft, "goals", goalId);
     });
   },
 
@@ -1008,6 +1014,7 @@ const Store = {
   deleteTransaction(transactionId) {
     this.mutate((draft) => {
       draft.transactions = draft.transactions.filter((transaction) => transaction.id !== transactionId);
+      addTombstone(draft, "transactions", transactionId);
     });
   },
 
@@ -1108,11 +1115,17 @@ const Store = {
     }
     const before = this.data.settings.favorites.length;
     this.mutate((draft) => {
+      const removedIds = draft.settings.favorites.filter((item) => (
+        item.desc === transaction.description &&
+        item.categoryId === transaction.categoryId &&
+        Math.abs(item.amount - transaction.amount) < 0.01
+      )).map((item) => item.id);
       draft.settings.favorites = draft.settings.favorites.filter((item) => !(
         item.desc === transaction.description &&
         item.categoryId === transaction.categoryId &&
         Math.abs(item.amount - transaction.amount) < 0.01
       ));
+      removedIds.forEach((id) => addTombstone(draft, "favorites", id));
     });
     return this.data.settings.favorites.length < before;
   },
@@ -1179,6 +1192,14 @@ const Store = {
     const normalizedBucket = normalizeTemplateBucket(bucket, transaction.type, transaction.flowKind);
     const before = this.data.settings.templates.length;
     this.mutate((draft) => {
+      const removedIds = draft.settings.templates.filter((item) => (
+        normalizeTemplateBucket(item.bucket, item.type, item.flowKind) === normalizedBucket &&
+        item.desc === transaction.description &&
+        item.categoryId === transaction.categoryId &&
+        item.type === transaction.type &&
+        item.flowKind === (transaction.type === "income" ? "standard" : transaction.flowKind) &&
+        Math.abs(item.amount - transaction.amount) < 0.01
+      )).map((item) => item.id);
       draft.settings.templates = draft.settings.templates.filter((item) => !(
         normalizeTemplateBucket(item.bucket, item.type, item.flowKind) === normalizedBucket &&
         item.desc === transaction.description &&
@@ -1187,6 +1208,7 @@ const Store = {
         item.flowKind === (transaction.type === "income" ? "standard" : transaction.flowKind) &&
         Math.abs(item.amount - transaction.amount) < 0.01
       ));
+      removedIds.forEach((id) => addTombstone(draft, "templates", id));
     });
     return this.data.settings.templates.length < before;
   },
@@ -1218,6 +1240,7 @@ const Store = {
         category.type = payload.type;
         category.color = payload.color;
         category.limit = payload.limit;
+        category.updatedAt = Utils.nowISO();
         if (previousType !== payload.type) {
           draft.transactions.forEach((transaction) => {
             if (transaction.categoryId === payload.id) {
@@ -1252,7 +1275,9 @@ const Store = {
           type: payload.type,
           color: payload.color,
           limit: payload.limit,
-          preset: false
+          preset: false,
+          createdAt: Utils.nowISO(),
+          updatedAt: Utils.nowISO()
         });
       }
     });
@@ -1273,7 +1298,9 @@ const Store = {
           type: category.type,
           color: "#8b949e",
           limit: 0,
-          preset: false
+          preset: false,
+          createdAt: Utils.nowISO(),
+          updatedAt: Utils.nowISO()
         };
         draft.settings.categories.unshift(emergency);
         fallbackId = emergency.id;
@@ -1302,6 +1329,7 @@ const Store = {
       }
 
       draft.settings.categories = draft.settings.categories.filter((item) => item.id !== categoryId);
+      addTombstone(draft, "categories", categoryId);
     });
   },
 
@@ -1335,6 +1363,7 @@ const Store = {
     const listName = kind === "favorite" ? "favorites" : "templates";
     this.mutate((draft) => {
       draft.settings[listName] = draft.settings[listName].filter((item) => item.id !== templateId);
+      addTombstone(draft, kind === "favorite" ? "favorites" : "templates", templateId);
     });
   },
 
@@ -1470,12 +1499,14 @@ const Store = {
       if (Object.prototype.hasOwnProperty.call(patch, "position")) {
         item.position = Number(patch.position);
       }
+      item.updatedAt = Utils.nowISO();
     }, options);
   },
 
   deleteWishlistItem(itemId) {
     this.mutate((draft) => {
       draft.settings.wishlist = draft.settings.wishlist.filter((item) => item.id !== itemId);
+      addTombstone(draft, "wishlist", itemId);
     });
   },
 
@@ -1504,6 +1535,7 @@ const Store = {
         updatedAt: Utils.nowISO()
       });
       draft.settings.wishlist = draft.settings.wishlist.filter((item) => item.id !== itemId);
+      addTombstone(draft, "wishlist", itemId);
       ensureDefaultMonthMeta(draft.months, targetDate.slice(0, 7));
     });
   },
@@ -1580,7 +1612,11 @@ const Store = {
     const next = normalizeData(raw);
     Diagnostics.report("import-backup:validated", audit);
     Diagnostics.report("import-backup:normalized", summarizeNormalizedData(next));
-    this.setData(next, { save: true });
+    this.setData(next, { save: false });
+    if (!this.saveLocal()) {
+      this.setData(before.data, { save: false });
+      throw new Error("Браузер не смог сохранить импорт. Исходные данные восстановлены; освободите место и повторите.");
+    }
     if (comparableDataSignature(next) !== comparableDataSignature(before.data)) {
       this.pushHistory(before);
     }
@@ -1593,6 +1629,15 @@ const Store = {
       }
     }
     UI.renderApp();
+  },
+
+  exportVersionedBackup() {
+    return {
+      format: "personal-budget-tracker",
+      schemaVersion: CONFIG.APP_VERSION,
+      exportedAt: Utils.nowISO(),
+      data: normalizeData(this.data)
+    };
   },
 
   exportLegacyBackup() {

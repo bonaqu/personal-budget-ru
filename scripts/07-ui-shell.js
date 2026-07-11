@@ -777,7 +777,19 @@ Object.assign(UI, {
     }
     modal.classList.add("is-open");
     modal.setAttribute("aria-hidden", "false");
-    modal.setAttribute("aria-modal", "true");
+    const dialog = modal.querySelector(".modal__dialog");
+    if (dialog) {
+      dialog.setAttribute("role", "dialog");
+      dialog.setAttribute("aria-modal", "true");
+      const heading = dialog.querySelector("h2, h3");
+      if (heading) {
+        heading.id ||= `${modalId}Title`;
+        dialog.setAttribute("aria-labelledby", heading.id);
+      }
+    }
+    [Utils.$("authScreen"), Utils.$("appShell")].forEach((surface) => {
+      if (surface && !modal.contains(surface)) surface.inert = true;
+    });
     this.syncAllAuthFields();
     App.runAfterNextPaint(() => this.focusModalPrimary(modal), 3);
   },
@@ -789,7 +801,12 @@ Object.assign(UI, {
     }
     modal.classList.remove("is-open");
     modal.setAttribute("aria-hidden", "true");
-    modal.removeAttribute("aria-modal");
+    modal.querySelector(".modal__dialog")?.removeAttribute("aria-modal");
+    if (!document.querySelector(".modal.is-open")) {
+      [Utils.$("authScreen"), Utils.$("appShell")].forEach((surface) => {
+        if (surface) surface.inert = false;
+      });
+    }
     if (modalId === "pickerModal") {
       this.pickerState.kind = null;
       this.pickerState.ids = new Set();
@@ -809,7 +826,7 @@ Object.assign(UI, {
   },
 
   closeModals() {
-    ["authModal", "accountMenuModal", "transactionModal", "moveTransactionModal", "categoryModal", "templateModal", "goalModal", "pickerModal", "syncChoiceModal"]
+    ["authModal", "accountMenuModal", "transactionModal", "moveTransactionModal", "categoryModal", "templateModal", "goalModal", "pickerModal", "syncChoiceModal", "recoveryCodeModal", "passwordChangeModal", "passwordRecoveryModal", "sessionsModal"]
       .forEach((modalId) => this.closeModal(modalId));
   },
 
@@ -1041,6 +1058,15 @@ Object.assign(UI, {
         hasPending
           ? "Изменения сохранены на устройстве и отправятся позже"
           : (lastSentMeta || "Текущие данные не потеряны")
+      );
+      return;
+    }
+    if (Sync.status === "conflict") {
+      dot.classList.add("is-error");
+      applySyncCopy(
+        `Аккаунт: ${login}`,
+        "Есть две измененные версии бюджета",
+        "Выберите облачную версию или версию с этого устройства; до выбора обе копии сохранены"
       );
       return;
     }

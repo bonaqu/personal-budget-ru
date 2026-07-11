@@ -13,9 +13,10 @@ worker_new.js
 output/
 .playwright-mcp/
 node_modules/
+dist/
+.codex-local/
 playwright-report/
 test-results/
-tests/
 _serve_out.txt
 _serve_err.txt
 _*.py

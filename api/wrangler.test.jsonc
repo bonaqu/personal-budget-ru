@@ -1,0 +1,19 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "personal-budget-api-test",
+  "main": "worker.js",
+  "compatibility_date": "2026-07-10",
+  "vars": {
+    "CORS_ALLOW_ORIGINS": "http://app.test",
+    "PBKDF2_ITERATIONS": "300000",
+    "MAX_DATA_BYTES": "8000000"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "personal-budget-test",
+      "database_id": "00000000-0000-0000-0000-000000000001",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

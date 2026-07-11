@@ -6,6 +6,7 @@ const Sync = {
   timer: null,
   retryTimer: null,
   retryAttempt: 0,
+  conflictOpen: false,
 
   init() {
     if (Auth.isAuthenticated()) {
@@ -54,7 +55,7 @@ const Sync = {
   },
 
   hasPendingChanges(login = Auth.getLogin()) {
-    const pending = Storage.loadPending();
+    const pending = Storage.loadPending(login);
     return Boolean(login && pending?.login === login);
   },
 
@@ -65,12 +66,24 @@ const Sync = {
       UI.renderSyncState();
       return;
     }
-    Storage.savePending({
+    const existing = Storage.loadPending(Auth.getLogin());
+    const payload = {
       login: Auth.getLogin(),
       token: Auth.getToken(),
+      operationId: existing?.login === Auth.getLogin() ? existing.operationId : Utils.uid("sync"),
+      baseRevision: existing?.login === Auth.getLogin()
+        ? Number(existing.baseRevision) || 0
+        : Store.remoteRevision,
       updatedAt: Utils.nowISO(),
       data: normalizeData(Store.data)
-    });
+    };
+    if (!Storage.savePending(payload)) {
+      this.lastError = "Браузер не смог сохранить очередь синхронизации. Сразу экспортируйте резервную копию.";
+      this.status = "error";
+      UI.renderSyncState();
+      UI.toast?.(this.lastError, "error");
+      return;
+    }
     this.lastError = "";
     this.retryAttempt = 0;
     this.clearRetry();
@@ -82,14 +95,17 @@ const Sync = {
     }
   },
 
-  async processQueue(forceProbe = false) {
+  async processQueue(forceProbe = false, lockAcquired = false) {
+    if (!lockAcquired && navigator.locks?.request && Auth.getLogin()) {
+      return navigator.locks.request(`budget-sync-${Auth.getLogin()}`, () => this.processQueue(forceProbe, true));
+    }
     if (!Auth.isAuthenticated()) {
       this.lastError = "";
       this.status = "local";
       UI.renderSyncState();
       return;
     }
-    const pending = Storage.loadPending();
+    const pending = Storage.loadPending(Auth.getLogin());
     if (!pending || pending.login !== Auth.getLogin()) {
       this.lastError = "";
       this.retryAttempt = 0;
@@ -119,12 +135,26 @@ const Sync = {
           throw Api.createError(probe.code, probe.message);
         }
       }
-      await Api.save(pending.login, pending.token, pending.data);
-      const latest = Storage.loadPending();
-      const savedCurrentPending = latest?.login === pending.login && latest?.updatedAt === pending.updatedAt;
+      const saveResult = await Api.save(
+        pending.login,
+        Auth.getToken(),
+        pending.data,
+        Number(pending.baseRevision) || 0
+      );
+      const latest = Storage.loadPending(pending.login);
+      const savedCurrentPending = latest?.login === pending.login && latest?.operationId === pending.operationId && latest?.updatedAt === pending.updatedAt;
       const hasQueuedFollowUp = latest?.login === pending.login && !savedCurrentPending;
       if (savedCurrentPending) {
-        Storage.clearPending();
+        Storage.clearPending(pending.login);
+      }
+      Store.remoteRevision = Number(saveResult?.revision) || (Number(pending.baseRevision) + 1);
+      Storage.saveRevision(pending.login, Store.remoteRevision);
+      if (hasQueuedFollowUp) {
+        Storage.savePending({
+          ...latest,
+          token: Auth.getToken(),
+          baseRevision: Store.remoteRevision
+        });
       }
       Auth.touchSession();
       this.retryAttempt = 0;
@@ -141,6 +171,20 @@ const Sync = {
       }
     } catch (error) {
       this.lastError = Api.getFriendlyMessage(error, "Не удалось синхронизировать изменения");
+      const serverCode = String(error?.payload?.code || "");
+      if (serverCode === "REVISION_CONFLICT") {
+        this.status = "conflict";
+        this.clearRetry();
+        if (!this.conflictOpen && typeof App?.handleSyncConflict === "function") {
+          this.conflictOpen = true;
+          try {
+            await App.handleSyncConflict({ pending, error });
+          } finally {
+            this.conflictOpen = false;
+          }
+        }
+        return;
+      }
       if (Api.isAuthSessionError(error)) {
         let sessionStillValid = false;
         try {

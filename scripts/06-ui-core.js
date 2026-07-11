@@ -60,6 +60,19 @@ const UI = {
     section: null,
     blocked: false
   },
+  journalPageSize: 200,
+  journalVisibleCounts: new Map(),
+  filteredPageSize: 300,
+  filteredVisibleCount: 300,
+
+  loadMoreJournal(section) {
+    const key = `${Store.viewMonth}:${section}`;
+    const current = this.journalVisibleCounts.get(key) || this.journalPageSize;
+    this.journalVisibleCounts.set(key, current + this.journalPageSize);
+    const root = Utils.$({ incomes: "incomesList", debts: "debtsList", recurring: "recurringBudgetList", expenses: "expensesList", wishlist: "wishList" }[section]);
+    if (root) delete root.dataset.renderSignature;
+    this.renderJournal();
+  },
 
   prefersReducedMotion() {
     return typeof window !== "undefined"
@@ -1266,6 +1279,16 @@ const UI = {
     });
     on("startupRegisterBtn", "click", () => App.authenticate("startup", "register"));
     on("modalRegisterBtn", "click", () => App.authenticate("modal", "register"));
+    on("startupRecoverBtn", "click", () => App.openPasswordRecovery("startup"));
+    on("modalRecoverBtn", "click", () => App.openPasswordRecovery("modal"));
+    on("passwordRecoveryForm", "submit", (event) => {
+      event.preventDefault();
+      App.submitPasswordRecovery();
+    });
+    on("passwordChangeForm", "submit", (event) => {
+      event.preventDefault();
+      App.submitPasswordChange();
+    });
     bindAuthEnter("startupLogin", "startup");
     bindAuthEnter("startupPassword", "startup");
     bindAuthEnter("modalLogin", "modal");
@@ -1309,7 +1332,13 @@ const UI = {
     on("pickerApplyBtn", "click", () => App.applyPickerSelection());
     on("accountSyncNowBtn", "click", () => App.syncNow());
     on("accountLogoutBtn", "click", () => App.logout());
-    on("accountPasswordInfoBtn", "click", () => UI.toast("Смену пароля добавим позже.", "info"));
+    on("accountPasswordInfoBtn", "click", () => App.openPasswordChange());
+    on("accountSessionsBtn", "click", () => App.openSessions());
+    on("accountRecoveryCodeBtn", "click", () => App.regenerateRecoveryCode());
+    on("downloadRecoveryCodeBtn", "click", () => App.downloadRecoveryCode());
+    on("revokeOtherSessionsBtn", "click", () => App.revokeOtherSessions());
+    on("applyUpdateBtn", "click", () => App.applyAppUpdate());
+    on("demoResetBtn", "click", () => App.resetDemo());
     on("syncChoiceKeepLocalBtn", "click", () => App.resolveSyncChoice("local"));
     on("syncChoiceUseCloudBtn", "click", () => App.resolveSyncChoice("cloud"));
     on("syncChoiceCancelBtn", "click", () => App.resolveSyncChoice("cancel"));
@@ -1463,6 +1492,12 @@ const UI = {
           if (action === "focus-transaction") {
             App.openTransactionInBudget(id);
           }
+        if (action === "load-more-filtered") {
+          this.filteredVisibleCount += this.filteredPageSize;
+          const root = Utils.$("transactionsList");
+          if (root) delete root.dataset.renderSignature;
+          this.renderTransactions();
+        }
         if (action === "delete-transaction") {
           App.deleteTransaction(id);
         }

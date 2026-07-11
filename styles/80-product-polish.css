@@ -60,6 +60,30 @@
   gap: 8px !important;
 }
 
+@media (max-width: 768px), (pointer: coarse) {
+  body .app-shell .journal-section .entry-row :is(
+    .entry-control-affix,
+    .journal-sort-inline,
+    .category-trigger,
+    .entry-actions__buttons .icon-btn--row
+  ) {
+    min-height: 44px !important;
+    height: 44px !important;
+    max-height: 44px !important;
+    min-width: 44px !important;
+  }
+
+  body .app-shell :is(.mobile-fab, .scroll-top-btn, .budget-jumpbar__link, .budget-jumpbar__add) {
+    min-height: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+  }
+
+  body .btn {
+    min-height: 44px;
+  }
+}
+
 .goal-card__meta span {
   padding: 8px 12px !important;
   min-height: 42px !important;
@@ -5181,4 +5205,95 @@ body[data-theme="light"] .account-menu__status.is-error {
   font-size: 0.56rem !important;
   line-height: 1 !important;
   transform: none !important;
+}
+/* Reliability and account safety surfaces */
+.update-banner {
+  position: fixed;
+  z-index: 10000;
+  inset-block-start: 12px;
+  inset-inline: 50%;
+  translate: -50% 0;
+  inline-size: min(680px, calc(100% - 24px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-solid, #161b22);
+  box-shadow: var(--shadow-lg);
+}
+
+.update-banner[hidden] { display: none; }
+
+.recovery-code {
+  padding: 16px;
+  border: 1px dashed var(--accent);
+  border-radius: 12px;
+  font: 700 1.05rem/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+  letter-spacing: .08em;
+  text-align: center;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.modal__close,
+.icon-btn,
+.chip-btn,
+.password-field__toggle,
+.entry-control-affix {
+  min-inline-size: 44px;
+  min-block-size: 44px;
+}
+
+@media (max-width: 520px) {
+  .update-banner { align-items: stretch; flex-direction: column; }
+}
+@media (max-width: 768px), (pointer: coarse) {
+  body button {
+    min-block-size: 44px !important;
+  }
+
+  .sidebar-month__nav-btn,
+  .sidebar-month__today-btn,
+  .budget-jumpbar__link,
+  .budget-jumpbar__add,
+  .entry-control-affix,
+  .journal-sort-inline,
+  .btn--compact,
+  .category-trigger,
+  .mobile-bottom-nav button,
+  .entry-actions button,
+  .settings-quick-switch button {
+    min-block-size: 44px !important;
+    min-inline-size: 44px !important;
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+
+  .journal-section .entry-row:not(.entry-row--wishlist),
+  .journal-section .entry-row--wishlist {
+    --entry-row-control-height: 44px !important;
+    --entry-row-action-size: 44px !important;
+    --entry-row-label-height: 16px !important;
+  }
+
+  .journal-section .entry-row :is(.entry-control-affix, .journal-sort-inline, .category-trigger, .icon-btn--row),
+  .budget-jumpbar :is(.budget-jumpbar__link, .budget-jumpbar__add),
+  .sidebar-month__controls :is(.sidebar-month__nav-btn, .sidebar-month__today-btn) {
+    min-height: 44px !important;
+    height: 44px !important;
+    max-height: 44px !important;
+    min-width: 44px !important;
+  }
+
+  .entry-control-affix.field-affix-control__button,
+  .scroll-top-btn {
+    inline-size: 44px !important;
+    block-size: 44px !important;
+    min-inline-size: 44px !important;
+    min-block-size: 44px !important;
+    flex: 0 0 44px !important;
+  }
 }

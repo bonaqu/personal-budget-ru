@@ -1,0 +1,35 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "personal-budget-api",
+  "main": "worker.js",
+  "compatibility_date": "2026-07-10",
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1 }
+  },
+  "vars": {
+    "CORS_ALLOW_ORIGINS": "http://127.0.0.1:4317,https://YOUR_GITHUB_PAGES_ORIGIN",
+    "PBKDF2_ITERATIONS": "600000",
+    "MAX_DATA_BYTES": "8000000"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "YOUR_D1_DATABASE",
+      "database_id": "YOUR_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "AUTH_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 20, "period": 60 }
+    },
+    {
+      "name": "LOGIN_RATE_LIMITER",
+      "namespace_id": "1002",
+      "simple": { "limit": 8, "period": 60 }
+    }
+  ]
+}

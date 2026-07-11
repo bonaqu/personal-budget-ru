@@ -243,7 +243,7 @@ Object.assign(UI, {
     // Chart.js нужен только когда пользователь реально открывает экран с графиками.
     this.chartLibraryPromise = new Promise((resolve, reject) => {
       const script = document.createElement("script");
-      script.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js";
+      script.src = new URL("vendor/chart.umd.min.js", document.baseURI).href;
       script.async = true;
       script.onload = () => resolve(window.Chart);
       script.onerror = () => reject(new Error("Не удалось загрузить библиотеку графиков."));

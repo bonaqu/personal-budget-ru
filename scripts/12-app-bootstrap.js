@@ -1,6 +1,90 @@
 const App = {
   journalFieldEdits: new Map(),
   monthStartEditSnapshot: null,
+  storageErrorShownAt: 0,
+  serviceWorkerRegistration: null,
+  updateReloading: false,
+
+  async registerServiceWorker() {
+    if (!("serviceWorker" in navigator) || location.protocol === "file:") return;
+    const allowLocalServiceWorker = new URLSearchParams(location.search).get("sw-test") === "1";
+    if (["localhost", "127.0.0.1", "::1"].includes(location.hostname) && !allowLocalServiceWorker) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.unregister()));
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((key) => key.startsWith("personal-budget-shell-")).map((key) => caches.delete(key)));
+      return;
+    }
+    try {
+      const registration = await navigator.serviceWorker.register(new URL("service-worker.js", document.baseURI), { scope: "./" });
+      this.serviceWorkerRegistration = registration;
+      const showUpdate = () => {
+        const banner = Utils.$("updateBanner");
+        if (banner) banner.hidden = false;
+      };
+      if (registration.waiting) showUpdate();
+      registration.addEventListener("updatefound", () => {
+        const worker = registration.installing;
+        worker?.addEventListener("statechange", () => {
+          if (worker.state === "installed" && navigator.serviceWorker.controller) showUpdate();
+        });
+      });
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (this.updateReloading) return;
+        this.updateReloading = true;
+        location.reload();
+      });
+    } catch (error) {
+      Diagnostics.report("service-worker:registration-failed", { message: error?.message || String(error) }, "warning");
+    }
+  },
+
+  applyAppUpdate() {
+    const waiting = this.serviceWorkerRegistration?.waiting;
+    if (!waiting) {
+      location.reload();
+      return;
+    }
+    Store.saveLocal();
+    waiting.postMessage({ type: "SKIP_WAITING" });
+  },
+
+  bindStorageSafety() {
+    window.addEventListener("budget:storage-error", (event) => {
+      const now = Date.now();
+      if (now - this.storageErrorShownAt < 5000) return;
+      this.storageErrorShownAt = now;
+      const message = "Не удалось записать данные в хранилище браузера. Не закрывайте вкладку и сразу экспортируйте резервную копию.";
+      UI.setBackupStatus?.(message, "error");
+      UI.toast?.(message, "error");
+      Diagnostics.report("storage:failed", event.detail || {}, "error");
+    });
+
+    window.addEventListener("storage", (event) => {
+      const login = Auth.getLogin();
+      if (event.key === CONFIG.SESSION_KEY && Auth.hasSession() && !event.newValue) {
+        this.handleRemoteSessionInvalid({ message: "Сессия завершена в другой вкладке." });
+        return;
+      }
+      if (!login) return;
+      if (event.key === Storage.cacheKey(login) && event.newValue) {
+        try {
+          const incoming = normalizeData(JSON.parse(event.newValue));
+          if (!isSemanticallySameData(Store.data, incoming)) {
+            const merged = mergeData(Store.data, incoming);
+            Store.setData(merged, { save: true });
+            UI.renderDataState();
+            if (Auth.isAuthenticated()) Sync.queueSync();
+          }
+        } catch (error) {
+          Diagnostics.report("storage:cross-tab-invalid", { message: error?.message || String(error) }, "warning");
+        }
+      }
+      if (event.key === Storage.pendingKey(login) && event.newValue && Auth.isAuthenticated() && navigator.onLine) {
+        Sync.processQueue();
+      }
+    });
+  },
 
   runAfterNextPaint(callback, frames = 2) {
     if (typeof callback !== "function") {
@@ -18,6 +102,8 @@ const App = {
 
   async init() {
     UI.init();
+    this.bindStorageSafety();
+    this.registerServiceWorker();
     await Auth.init();
     Sync.init();
     try {
@@ -51,7 +137,7 @@ const App = {
           await Api.probeConnection();
         }
         await this.loadRemoteIntoStore({ silent: true, mergeGuest: false });
-        if (Storage.loadPending()?.login === Auth.getLogin()) {
+        if (Storage.loadPending(Auth.getLogin())?.login === Auth.getLogin()) {
           Sync.processQueue(true);
         }
       }
@@ -162,7 +248,7 @@ const App = {
       statusLabel = "Демо";
       subtextValue = "Демо доступно только в этом браузере.";
       metaValue = "Демо-данные живут отдельно от вашего аккаунта";
-      stateValue = "Это отдельная демонстрационная среда. Ее данные не отправляются в облако и не попадут в ваш рабочий бюджет.";
+      stateValue = "Это отдельная демонстрационная среда. Ее данные не отправляются в облако и автоматически сбрасываются после перезагрузки страницы.";
     } else if (!isLocalOnly) {
       subtextValue = Auth.getExpiry()
         ? `Аккаунт активен до ${new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(Auth.getExpiry()))}.`
@@ -170,7 +256,7 @@ const App = {
       metaValue = hasPending
         ? "Есть изменения на этом устройстве"
         : "Аккаунт подключен. Синхронизация включена";
-      passwordHintValue = "Смену пароля добавим чуть позже.";
+      passwordHintValue = "До трех устройств; автовыход после 12 часов бездействия.";
       sourceValue = hasPending ? "Это устройство" : "Аккаунт и облако";
       pendingValue = hasPending ? "Ожидает отправки" : "Нет";
       lastSyncValue = Sync.lastSyncedAt ? Utils.timeSince(Sync.lastSyncedAt) : "Еще не было";
@@ -188,15 +274,19 @@ const App = {
               ? (hasPending
                 ? "Интернета сейчас нет. Изменения сохранены на устройстве и отправятся автоматически, когда связь вернется."
                 : "Интернета сейчас нет. Показываем последнюю сохраненную версию бюджета.")
-              : (syncStatus === "error"
+              : (syncStatus === "conflict"
+                ? "Данные изменились на двух устройствах. Выберите актуальную версию; до решения обе копии остаются сохранены."
+                : (syncStatus === "error"
                 ? `Не получилось обновить облако: ${Sync.lastError || "данные на устройстве сохранены, но облако пока еще не обновилось."}`
-                : "Аккаунт подключен. Сверяем данные с облаком."))));
+                : "Аккаунт подключен. Сверяем данные с облаком.")))));
       if (syncStatus === "syncing") {
         cloudValue = hasPending ? "Отправляем" : "Проверяем";
       } else if (syncStatus === "offline") {
         cloudValue = hasPending ? "Ждет связи" : "Нет связи";
       } else if (syncStatus === "error") {
         cloudValue = "Требует повтора";
+      } else if (syncStatus === "conflict") {
+        cloudValue = "Нужен выбор";
       } else if (syncStatus === "pending") {
         cloudValue = "Обновляется";
       } else if (syncStatus === "synced") {
@@ -239,6 +329,9 @@ const App = {
         } else if (syncStatus === "error") {
           statusTone = "is-error";
           statusLabel = "Ошибка";
+        } else if (syncStatus === "conflict") {
+          statusTone = "is-error";
+          statusLabel = "Конфликт";
         }
       }
     }
@@ -263,6 +356,9 @@ const App = {
     }
     Utils.$("accountSyncNowBtn")?.classList.toggle("is-hidden", isLocalOnly);
     Utils.$("accountPasswordInfoBtn")?.classList.toggle("is-hidden", isLocalOnly);
+    Utils.$("accountSessionsBtn")?.classList.toggle("is-hidden", isLocalOnly);
+    Utils.$("accountRecoveryCodeBtn")?.classList.toggle("is-hidden", isLocalOnly);
+    Utils.$("demoResetBtn")?.classList.toggle("is-hidden", !isLocalTest);
   },
 
   describeDataSource(data, fallbackLabel) {
@@ -299,6 +395,204 @@ const App = {
     }
     UI.syncChoiceResolver = null;
     UI.closeModal("syncChoiceModal");
+  },
+
+  async handleSyncConflict({ pending, error }) {
+    const login = Auth.getLogin();
+    if (!login || pending?.login !== login) {
+      return;
+    }
+    let remoteResult;
+    try {
+      remoteResult = await Api.load(login, Auth.getToken());
+    } catch (loadError) {
+      Sync.lastError = Api.getFriendlyMessage(loadError, "Не удалось загрузить облачную версию для разрешения конфликта");
+      Sync.status = Api.isRetryable(loadError) ? "offline" : "error";
+      return;
+    }
+
+    const remoteData = normalizeData(remoteResult.data);
+    const localData = normalizeData(pending.data);
+    Store.remoteRevision = remoteResult.revision;
+    Storage.saveRevision(login, remoteResult.revision);
+
+    if (isSemanticallySameData(localData, remoteData)) {
+      Storage.clearPending(login);
+      Store.setData(remoteData, { save: true });
+      Sync.status = "synced";
+      Sync.lastError = "";
+      UI.renderApp();
+      UI.toast("Конфликт разрешен автоматически: данные совпадают.", "success");
+      return;
+    }
+
+    const choice = await this.promptSyncChoice({ login, guestData: localData, remoteData });
+    if (choice === "cloud") {
+      if (!this.exportBackup({ silent: true, filePrefix: "conflict_device", data: localData })) {
+        Sync.status = "conflict";
+        Sync.lastError = "Локальную версию не удалось сохранить в файл. Облачная версия не применена.";
+        UI.toast(Sync.lastError, "error");
+        return;
+      }
+      Storage.clearPending(login);
+      Store.setData(remoteData, { save: true });
+      Store.resetHistory();
+      Sync.status = "synced";
+      Sync.lastError = "";
+      Sync.lastSyncedAt = Utils.nowISO();
+      Storage.saveLastSync(login, Sync.lastSyncedAt);
+      UI.renderApp();
+      UI.toast("Выбрана более свежая облачная версия. Предыдущая локальная копия сохранена отдельным backup-файлом.", "success");
+      return;
+    }
+    if (choice === "local") {
+      Storage.savePending({
+        ...pending,
+        token: Auth.getToken(),
+        operationId: Utils.uid("sync"),
+        baseRevision: remoteResult.revision,
+        updatedAt: Utils.nowISO()
+      });
+      Sync.status = "syncing";
+      Sync.lastError = "";
+      clearTimeout(Sync.timer);
+      Sync.timer = setTimeout(() => Sync.processQueue(true), 100);
+      UI.toast("Выбрана версия с устройства. Она будет записана поверх облачной версии после контрольной проверки.", "warning");
+      return;
+    }
+    Sync.status = "conflict";
+    Sync.lastError = "Конфликт не разрешен. Обе версии сохранены; синхронизация приостановлена.";
+  },
+
+  presentRecoveryCode(recoveryCode) {
+    const code = String(recoveryCode || "");
+    if (!code) return;
+    const value = Utils.$("recoveryCodeValue");
+    if (value) value.textContent = code;
+    UI.openModal("recoveryCodeModal");
+  },
+
+  downloadRecoveryCode() {
+    const code = Utils.$("recoveryCodeValue")?.textContent?.trim();
+    const login = Auth.getLogin();
+    if (!code || !login) return;
+    const blob = new Blob([
+      "Personal Budget Tracker — код восстановления\n\n",
+      `Логин: ${login}\n`,
+      `Код: ${code}\n\n`,
+      "Храните этот файл отдельно. Каждый код используется один раз.\n"
+    ], { type: "text/plain;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `budget-recovery-${login}.txt`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 0);
+  },
+
+  openPasswordRecovery(source = "startup") {
+    const sourceLogin = Utils.$(source === "modal" ? "modalLogin" : "startupLogin")?.value?.trim();
+    Utils.$("recoveryLogin").value = sourceLogin || "";
+    Utils.$("recoveryCode").value = "";
+    Utils.$("recoveryNewPassword").value = "";
+    UI.clearStatusNode(Utils.$("passwordRecoveryStatus"));
+    UI.openModal("passwordRecoveryModal");
+  },
+
+  async submitPasswordRecovery() {
+    const login = Utils.$("recoveryLogin").value.trim();
+    const recoveryCode = Utils.$("recoveryCode").value.trim();
+    const newPassword = Utils.$("recoveryNewPassword").value;
+    const status = Utils.$("passwordRecoveryStatus");
+    if (!login || !recoveryCode || newPassword.length < 8) {
+      UI.setStatusNode(status, "Заполните все поля; новый пароль — не короче 8 символов.", "error");
+      return;
+    }
+    UI.setStatusNode(status, "Проверяем код…", "info");
+    try {
+      const result = await Api.recoverPassword(login, recoveryCode, newPassword);
+      UI.closeModal("passwordRecoveryModal");
+      this.presentRecoveryCode(result.recoveryCode);
+      UI.toast("Пароль изменен. Все прежние сессии завершены; сохраните новый код восстановления и войдите снова.", "success");
+    } catch (error) {
+      UI.setStatusNode(status, Api.getFriendlyMessage(error, "Не удалось восстановить доступ"), "error");
+    }
+  },
+
+  openPasswordChange() {
+    UI.closeModal("accountMenuModal");
+    Utils.$("currentPassword").value = "";
+    Utils.$("newPassword").value = "";
+    UI.clearStatusNode(Utils.$("passwordChangeStatus"));
+    UI.openModal("passwordChangeModal");
+  },
+
+  async submitPasswordChange() {
+    const currentPassword = Utils.$("currentPassword").value;
+    const newPassword = Utils.$("newPassword").value;
+    const status = Utils.$("passwordChangeStatus");
+    if (!currentPassword || newPassword.length < 8) {
+      UI.setStatusNode(status, "Укажите текущий пароль и новый пароль не короче 8 символов.", "error");
+      return;
+    }
+    UI.setStatusNode(status, "Меняем пароль…", "info");
+    try {
+      await Api.changePassword(Auth.getLogin(), Auth.getToken(), currentPassword, newPassword);
+      UI.closeModal("passwordChangeModal");
+      UI.toast("Пароль изменен. Сессии на других устройствах завершены.", "success");
+    } catch (error) {
+      UI.setStatusNode(status, Api.getFriendlyMessage(error, "Не удалось сменить пароль"), "error");
+    }
+  },
+
+  async openSessions() {
+    UI.closeModal("accountMenuModal");
+    const root = Utils.$("sessionsList");
+    root.replaceChildren(Utils.createElement("p", "empty-state empty-state--compact", "Загружаем список устройств…"));
+    UI.openModal("sessionsModal");
+    try {
+      const result = await Api.listSessions(Auth.getLogin(), Auth.getToken());
+      const fragment = document.createDocumentFragment();
+      (result.sessions || []).forEach((session) => {
+        const item = Utils.createElement("article", "account-menu__fact");
+        item.setAttribute("role", "listitem");
+        const title = Utils.createElement("strong", "", session.current ? `${session.deviceName} · это устройство` : session.deviceName);
+        const detail = Utils.createElement("span", "", `Активность: ${Utils.timeSince(new Date(session.lastSeenAt).toISOString())}`);
+        item.append(title, detail);
+        if (!session.current) {
+          const revoke = Utils.createElement("button", "btn btn--ghost", "Завершить");
+          revoke.type = "button";
+          revoke.addEventListener("click", async () => {
+            await Api.revokeSession(Auth.getLogin(), Auth.getToken(), { sessionId: session.id });
+            await this.openSessions();
+          });
+          item.append(revoke);
+        }
+        fragment.append(item);
+      });
+      root.replaceChildren(fragment);
+    } catch (error) {
+      root.replaceChildren(Utils.createElement("p", "empty-state empty-state--compact", Api.getFriendlyMessage(error, "Не удалось загрузить устройства")));
+    }
+  },
+
+  async revokeOtherSessions() {
+    try {
+      await Api.revokeSession(Auth.getLogin(), Auth.getToken(), { allOther: true });
+      await this.openSessions();
+      UI.toast("Сессии на других устройствах завершены.", "success");
+    } catch (error) {
+      UI.toast(Api.getFriendlyMessage(error, "Не удалось завершить другие сессии"), "error");
+    }
+  },
+
+  async regenerateRecoveryCode() {
+    UI.closeModal("accountMenuModal");
+    try {
+      const result = await Api.regenerateRecoveryCode(Auth.getLogin(), Auth.getToken());
+      this.presentRecoveryCode(result.recoveryCode);
+    } catch (error) {
+      UI.toast(Api.getFriendlyMessage(error, "Не удалось обновить код восстановления"), "error");
+    }
   },
 
   async applyAuthenticatedData(data, {
@@ -341,63 +635,70 @@ const App = {
     }
     const guestData = normalizeData(ignoreGuest ? defaultData() : Storage.loadCache(null));
     const localAccount = normalizeData(Storage.loadCache(login));
-    const remoteRaw = await Api.load(login, Auth.getToken());
-    const remoteData = normalizeData(remoteRaw);
+    const remoteResult = await Api.load(login, Auth.getToken());
+    const remoteData = normalizeData(remoteResult.data);
+    Store.remoteRevision = remoteResult.revision;
+    Storage.saveRevision(login, remoteResult.revision);
     const hasGuest = hasMeaningfulData(guestData);
     const hasRemote = hasMeaningfulData(remoteData);
+    const pending = Storage.loadPending(login);
 
-    if (!hasGuest) {
-      const sameAsRemote = isSemanticallySameData(remoteData, localAccount);
-      const nextData = sameAsRemote
-        ? remoteData
-        : mergeData(remoteRaw, localAccount);
-      await this.applyAuthenticatedData(nextData, {
-        clearGuest: false,
-        syncUp: !sameAsRemote,
-        toastMessage: sameAsRemote
-          ? "Аккаунт подключен. Бюджет синхронизирован из облака"
-          : "Аккаунт подключен. Данные на устройстве синхронизированы с облаком"
+    if (pending?.login === login) {
+      Store.remoteRevision = Number(pending.baseRevision) || remoteResult.revision;
+      await this.applyAuthenticatedData(pending.data, {
+        clearGuest: ignoreGuest,
+        syncUp: false,
+        toastMessage: "Найдены несинхронизированные изменения с этого устройства. Возобновляем отправку в облако.",
+        toastTone: "info"
+      });
+      App.runAfterNextPaint(() => Sync.processQueue(true), 2);
+      return;
+    }
+
+    const deviceCandidate = hasGuest ? guestData : localAccount;
+    const hasDeviceCandidate = hasMeaningfulData(deviceCandidate);
+
+    if (!hasDeviceCandidate || isSemanticallySameData(deviceCandidate, remoteData)) {
+      await this.applyAuthenticatedData(remoteData, {
+        clearGuest: hasGuest,
+        syncUp: false,
+        toastMessage: "Аккаунт подключен. Загружена актуальная версия из облака"
       });
       return;
     }
 
     if (!hasRemote || mode === "register") {
-      await this.applyAuthenticatedData(guestData, {
-        clearGuest: true,
+      await this.applyAuthenticatedData(deviceCandidate, {
+        clearGuest: hasGuest,
         syncUp: true,
         toastMessage: "Аккаунт подключен. Данные с устройства синхронизированы с облаком"
       });
       return;
     }
 
-    if (isSemanticallySameData(guestData, remoteData)) {
-      await this.applyAuthenticatedData(remoteData, {
-        clearGuest: true,
-        syncUp: false,
-        toastMessage: "Аккаунт подключен. Данные уже синхронизированы"
-      });
-      return;
-    }
-
-    const choice = await this.promptSyncChoice({ login, guestData, remoteData });
+    const choice = await this.promptSyncChoice({ login, guestData: deviceCandidate, remoteData });
     if (choice === "local") {
-      await this.applyAuthenticatedData(guestData, {
-        clearGuest: true,
+      await this.applyAuthenticatedData(deviceCandidate, {
+        clearGuest: hasGuest,
         syncUp: true,
-        toastMessage: "Оставили данные с устройства и синхронизировали их с облаком"
+        toastMessage: "Выбрана версия с устройства. Она отправляется в облако"
       });
       return;
     }
     if (choice === "cloud") {
+      if (!this.exportBackup({ silent: true, filePrefix: "before_cloud", data: deviceCandidate })) {
+        UI.toast("Не удалось сохранить локальную версию. Переключение на облачную отменено.", "error");
+        return;
+      }
       await this.applyAuthenticatedData(remoteData, {
-        clearGuest: true,
+        clearGuest: hasGuest,
         syncUp: false,
-        toastMessage: "Данные на устройстве синхронизированы с аккаунтом"
+        toastMessage: "Выбрана более свежая облачная версия"
       });
       return;
     }
 
-    Auth.clearSession();
+    Auth.clearSession({ preservePending: true });
     clearTimeout(Sync.timer);
     Sync.clearRetry();
     Sync.retryAttempt = 0;
@@ -486,10 +787,15 @@ const App = {
       } else {
         response = await Api.register(login, password);
       }
-      await Auth.setSession(login, response.token);
+      await Auth.setSession(login, response.token, {
+        sessionId: response.id,
+        serverExpiresAt: response.expiresAt,
+        idleTimeoutMs: response.idleTimeoutMs
+      });
+      Store.remoteRevision = Number(response.revision) || 0;
+      Storage.saveRevision(login, Store.remoteRevision);
 
       if (previousLocalOnly) {
-        Storage.clearPending();
         Storage.remove(Storage.cacheKey(LOCAL_TEST_CREDENTIALS.login));
         Storage.saveCache(null, defaultData());
       }
@@ -505,6 +811,9 @@ const App = {
       }
 
       await this.resolveAuthenticatedDataFlow({ mode, ignoreGuest: previousLocalOnly || afterLocalTestLogout });
+      if (mode === "register" && response.recoveryCode) {
+        this.presentRecoveryCode(response.recoveryCode);
+      }
       try {
         sessionStorage.removeItem(LOCAL_TEST_EXIT_FLAG);
       } catch {}
@@ -548,19 +857,24 @@ const App = {
     if (!login) {
       return;
     }
-    const localAccount = Storage.loadCache(login);
+    const pending = Storage.loadPending(login);
+    const localAccount = pending?.login === login ? pending.data : Storage.loadCache(login);
     const guestCache = mergeGuest ? Storage.loadCache(null) : defaultData();
     const working = mergeGuest ? mergeData(localAccount, guestCache) : localAccount;
     Store.setData(working, { save: true });
     UI.renderApp();
 
     try {
-      const remoteRaw = await Api.load(login, Auth.getToken());
-      const remoteData = normalizeData(remoteRaw);
-      const merged = isSemanticallySameData(remoteData, working)
-        ? remoteData
-        : mergeData(remoteData, working);
-      Store.setData(merged, { save: true });
+      const remoteResult = await Api.load(login, Auth.getToken());
+      const remoteData = normalizeData(remoteResult.data);
+      Store.remoteRevision = remoteResult.revision;
+      Storage.saveRevision(login, remoteResult.revision);
+      if (pending?.login === login) {
+        Store.setData(pending.data, { save: true });
+        await Sync.processQueue(true);
+        return;
+      }
+      Store.setData(remoteData, { save: true });
       Store.resetHistory();
       Auth.touchSession();
       Sync.retryAttempt = 0;
@@ -578,10 +892,6 @@ const App = {
         UI.toast("Аккаунт подключен. Бюджет синхронизирован из облака", "success");
       }
 
-      if (!isSemanticallySameData(remoteData, merged)) {
-        Sync.queueSync();
-        await Sync.processQueue(true);
-      }
     } catch (error) {
       if (Api.isAuthSessionError(error)) {
         this.handleRemoteSessionInvalid({
@@ -619,9 +929,7 @@ const App = {
     Sync.lastSyncedAt = null;
     Sync.lastError = "";
 
-    if (!wasLocalTest) {
-      Storage.saveCache(null, normalizeData(Store.data));
-    } else if (login) {
+    if (wasLocalTest && login) {
       Storage.remove(Storage.cacheKey(login));
     }
 
@@ -644,9 +952,7 @@ const App = {
     Sync.lastSyncedAt = null;
     Sync.lastError = "";
 
-    if (!isLocalTest) {
-      Storage.saveCache(null, normalizeData(Store.data));
-    } else if (login) {
+    if (isLocalTest && login) {
       Storage.remove(Storage.cacheKey(login));
     }
 
@@ -663,18 +969,22 @@ const App = {
     Store.loadLocal(null);
     Store.resetHistory();
     UI.showStartupAuth();
-    UI.toast("Сессия завершена после 30 минут бездействия. Войдите снова.", "warning");
+    UI.toast("Сессия завершена после 12 часов бездействия. Войдите снова.", "warning");
   },
 
-  logout() {
+  async logout() {
     UI.closeModal("accountMenuModal");
     const previousLogin = Auth.getLogin();
     const previousToken = Auth.getToken();
     const wasLocalTest = Auth.isLocalOnly() && isLocalTestLogin(previousLogin);
-    if (Auth.isAuthenticated() && previousLogin && previousToken && navigator.onLine) {
-      Api.logout(previousLogin, previousToken).catch(() => {});
+    const hasPending = Sync.hasPendingChanges(previousLogin);
+    if (Auth.isAuthenticated() && hasPending && navigator.onLine) {
+      await Sync.processQueue(true);
     }
-    Auth.clearSession();
+    if (Auth.isAuthenticated() && previousLogin && previousToken && navigator.onLine && !Sync.hasPendingChanges(previousLogin)) {
+      await Api.logout(previousLogin, previousToken).catch(() => {});
+    }
+    Auth.clearSession({ preservePending: true });
     clearTimeout(Sync.timer);
     Sync.clearRetry();
     Sync.retryAttempt = 0;
@@ -694,7 +1004,9 @@ const App = {
     Store.loadLocal(null);
     Store.resetHistory();
     UI.showStartupAuth();
-    UI.toast("Сессия завершена.", "info");
+    UI.toast(hasPending && Sync.hasPendingChanges(previousLogin)
+      ? "Сессия завершена. Неотправленные изменения сохранены на устройстве и продолжат синхронизацию после следующего входа."
+      : "Сессия завершена.", "info");
   },
 
   async syncNow() {
@@ -717,6 +1029,15 @@ const App = {
     if (Sync.status === "error") {
       UI.toast(Sync.lastError || "Не получилось обновить облако. Данные на устройстве сохранены.", "error");
     }
+  },
+
+  resetDemo() {
+    if (!Auth.isLocalOnly() || !isLocalTestLogin(Auth.getLogin())) return;
+    Storage.saveCache(Auth.getLogin(), buildLocalTestData());
+    Store.loadLocal(Auth.getLogin());
+    Store.resetHistory();
+    UI.renderApp();
+    UI.toast("Демо-данные восстановлены в исходное состояние.", "success");
   },
 
   undo() {
@@ -899,7 +1220,7 @@ const App = {
   focusBudgetFilterShell({ selectSearch = true } = {}) {
     const filterShell = Utils.$("budgetFilterShell");
     const searchInput = Utils.$("searchInput");
-    filterShell?.scrollIntoView({ behavior: this.prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+    filterShell?.scrollIntoView({ behavior: UI.prefersReducedMotion() ? "auto" : "smooth", block: "start" });
     filterShell?.classList.add("is-target");
     setTimeout(() => filterShell?.classList.remove("is-target"), 1800);
     if (selectSearch && searchInput) {
@@ -917,7 +1238,7 @@ const App = {
     if (!row) {
       return;
     }
-    row.scrollIntoView({ behavior: this.prefersReducedMotion() ? "auto" : "smooth", block: "center" });
+    row.scrollIntoView({ behavior: UI.prefersReducedMotion() ? "auto" : "smooth", block: "center" });
     row.classList.add("is-budget-target");
     setTimeout(() => row.classList.remove("is-budget-target"), 1800);
   },
@@ -958,6 +1279,7 @@ const App = {
 
   updateFilter(field, value) {
     Store.filters[field] = value;
+    UI.filteredVisibleCount = UI.filteredPageSize;
     if ((field === "search" && String(value || "").trim()) || (field === "dateFrom" && value) || (field === "dateTo" && value)) {
       this.setBudgetFiltersCollapsed(false);
     }
@@ -1093,6 +1415,10 @@ const App = {
     }
     if (action === "add-row" && section) {
       this.addJournalRow(section);
+      return;
+    }
+    if (action === "load-more" && section) {
+      UI.loadMoreJournal(section);
       return;
     }
     if (action === "delete" && id) {
@@ -1715,15 +2041,21 @@ const App = {
     UI.toast("Шаблон применен на сегодняшнюю дату", "success");
   },
 
-  exportBackup() {
-    UI.clearBackupStatus();
+  exportBackup({ silent = false, filePrefix = "budget", data = Store.data } = {}) {
+    if (!silent) UI.clearBackupStatus();
     try {
-      const backup = Store.exportLegacyBackup();
+      const sourceData = normalizeData(data);
+      const backup = {
+        format: "personal-budget-tracker",
+        schemaVersion: CONFIG.APP_VERSION,
+        exportedAt: Utils.nowISO(),
+        data: sourceData
+      };
       const normalizedRoundtrip = normalizeData(backup);
-      const sourceSummary = summarizeNormalizedData(Store.data);
+      const sourceSummary = summarizeNormalizedData(sourceData);
       const roundtripSummary = summarizeNormalizedData(normalizedRoundtrip);
       const roundtripDiff = diffDataSummaries(sourceSummary, roundtripSummary);
-      const signatureEqual = comparableDataSignature(Store.data) === comparableDataSignature(normalizedRoundtrip);
+      const signatureEqual = comparableDataSignature(sourceData) === comparableDataSignature(normalizedRoundtrip);
       Diagnostics.report("export-backup:roundtrip", {
         source: sourceSummary,
         roundtrip: roundtripSummary,
@@ -1739,21 +2071,27 @@ const App = {
       const link = document.createElement("a");
       link.href = url;
       const profile = Auth.getLogin() || "local";
-      link.download = `budget_${profile}_backup_${Utils.todayISO()}.json`;
+      link.download = `${filePrefix}_${profile}_backup_${Utils.todayISO()}.json`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 0);
-      UI.setBackupStatus("Резервная копия проверена и готова. Браузер уже начал скачивание.", "success");
-      UI.toast("Резервная копия готова", "success");
+      if (!silent) {
+        UI.setBackupStatus("Резервная копия проверена и готова. Браузер уже начал скачивание.", "success");
+        UI.toast("Резервная копия готова", "success");
+      }
+      return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Не удалось подготовить резервную копию.";
       Diagnostics.report("export-backup:failed", {
         message,
         stack: error instanceof Error ? error.stack : null
       }, "error");
-      UI.setBackupStatus(message, "error");
-      UI.toast(message, "error");
+      if (!silent) {
+        UI.setBackupStatus(message, "error");
+        UI.toast(message, "error");
+      }
+      return false;
     }
   },
 
@@ -1806,6 +2144,17 @@ const App = {
           },
           audit
         });
+        const summary = audit.summary;
+        const confirmed = window.confirm(
+          `Импорт заменит текущий бюджет.\n\nВ файле: ${summary.transactions || 0} операций, ${summary.months || 0} месяцев, ${summary.categories || 0} категорий.\n\nПеред заменой будет автоматически скачана резервная копия текущих данных. Продолжить?`
+        );
+        if (!confirmed) {
+          UI.setBackupStatus("Импорт отменен. Текущие данные не изменены.", "info");
+          return;
+        }
+        if (!this.exportBackup({ silent: true, filePrefix: "before_import" })) {
+          throw new Error("Не удалось создать контрольную копию перед импортом. Импорт отменен.");
+        }
         Store.importBackup(parsed);
         UI.setBackupStatus("Резервная копия загружена. Бюджет уже на месте.", "success");
         UI.toast("Резервная копия загружена", "success");
@@ -1839,11 +2188,7 @@ const Diagnostics = {
     if (level === "error" || level === "warning") {
       return true;
     }
-    try {
-      return window.__BUDGET_DEBUG__ === true || localStorage.getItem("budgetDebug") === "1";
-    } catch {
-      return false;
-    }
+    return ["localhost", "127.0.0.1", "::1"].includes(location.hostname);
   },
 
   report(label, payload, level = "info") {
@@ -1928,7 +2273,8 @@ const Diagnostics = {
   }
 };
 
-window.BudgetTrackerDebug = {
+if (["localhost", "127.0.0.1", "::1"].includes(location.hostname)) {
+  window.BudgetTrackerDebug = {
   normalizeData,
   mergeDataPreview: (remote, local) => normalizeData(mergeData(remote, local)),
   validateBackupPayload,
@@ -1972,8 +2318,9 @@ window.BudgetTrackerDebug = {
   redo: () => Store.redo(),
   canUndo: () => Store.canUndo(),
   canRedo: () => Store.canRedo(),
-  getDiagnostics: () => Diagnostics.snapshot()
-};
+    getDiagnostics: () => Diagnostics.snapshot()
+  };
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   Diagnostics.install();
