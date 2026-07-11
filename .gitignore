@@ -6,8 +6,8 @@
 !.env.example
 
 # local worker drafts
-worker.js
-worker_new.js
+/worker.js
+/worker_new.js
 
 # local outputs and service files
 output/
