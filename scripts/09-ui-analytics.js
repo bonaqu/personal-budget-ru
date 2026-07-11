@@ -103,7 +103,10 @@ Object.assign(UI, {
     const fragment = document.createDocumentFragment();
     if (!goals.length) {
       const emptyCard = Utils.createElement("article", "goal-card goal-card--empty");
+      const emptyIcon = Utils.createElement("span", "goal-card__empty-icon", "+");
+      emptyIcon.setAttribute("aria-hidden", "true");
       emptyCard.append(
+        emptyIcon,
         Utils.createElement("strong", "", "Цели и копилки появятся здесь"),
         Utils.createElement("p", "goal-card__note", "Добавьте цель, чтобы видеть прогресс накопления рядом с аналитикой месяца.")
       );
@@ -157,7 +160,7 @@ Object.assign(UI, {
       editButton.type = "button";
       editButton.dataset.action = "edit-goal";
       editButton.dataset.id = goal.id;
-      const deleteButton = Utils.createElement("button", "chip-btn", "Удалить");
+      const deleteButton = Utils.createElement("button", "chip-btn chip-btn--danger", "Удалить");
       deleteButton.type = "button";
       deleteButton.dataset.action = "delete-goal";
       deleteButton.dataset.id = goal.id;
@@ -169,8 +172,11 @@ Object.assign(UI, {
     const addTile = Utils.createElement("button", "goal-card goal-card--adder");
     addTile.type = "button";
     addTile.dataset.action = "create-goal-inline";
+    const addIcon = Utils.createElement("span", "goal-card__add-icon", "+");
+    addIcon.setAttribute("aria-hidden", "true");
     addTile.append(
-      Utils.createElement("strong", "", "+ Добавить цель"),
+      addIcon,
+      Utils.createElement("strong", "", "Добавить цель"),
       Utils.createElement("span", "", "Копилка, резерв или крупная покупка")
     );
     fragment.appendChild(addTile);

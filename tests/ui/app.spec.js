@@ -278,6 +278,9 @@ test("goal cards stay compact, wrap after four and premium motion respects prefe
   expect(Math.max(...layout.widths)).toBeLessThan(330);
   expect(layout.overflow).toBeLessThanOrEqual(1);
   expect(layout.progressRole).toBe("progressbar");
+  await expect(page.locator(".goal-card--adder strong")).toHaveText("Добавить цель");
+  await expect(page.locator(".goal-card__add-icon")).toHaveAttribute("aria-hidden", "true");
+  await expect(page.locator(".goal-card__actions .chip-btn--danger")).toHaveCount(2);
 
   const wrappedRows = await page.evaluate(() => {
     const data = Utils.clone(Store.data);
@@ -369,6 +372,12 @@ test("advanced statistics use a compact 3 by 2 grid with useful context", async 
   expect(desktop.contexts.every(Boolean)).toBe(true);
   expect(desktop.panelHeight).toBeLessThan(430);
   expect(desktop.activeView).toBe("deep");
+
+  await page.locator("#analyticsViewForecastBtn").click();
+  await expect(page.locator("#analyticsViewForecastBtn")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#analyticsPaneForecast")).toBeVisible();
+  await page.locator("#analyticsViewDeepBtn").click();
+  await expect(page.locator("#analyticsViewDeepBtn")).toHaveAttribute("aria-selected", "true");
 
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.locator("#deepStats").evaluate((root) => (

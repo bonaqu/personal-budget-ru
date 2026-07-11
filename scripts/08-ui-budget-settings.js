@@ -669,7 +669,7 @@ Object.assign(UI, {
             ${templateMeta ? `<button class="icon-btn icon-btn--tiny icon-btn--row${templateState}" type="button" data-journal-action="template" data-template-bucket="${templateBucket}" data-id="${transaction.id}" aria-label="${templateState ? templateMeta.removeLabel : templateMeta.addLabel}" title="${templateState ? templateMeta.removeLabel : templateMeta.addLabel}">${Utils.icon("bookmark")}</button>` : ""}
             ${section === "expenses" ? `<button class="icon-btn icon-btn--tiny icon-btn--row${favoriteState}" type="button" data-journal-action="favorite" data-id="${transaction.id}" aria-label="${favoriteState ? "Убрать из избранного" : "Добавить в избранное"}" title="${favoriteState ? "Убрать из избранного" : "Добавить в избранное"}">${Utils.icon("star")}</button>` : ""}
             <button class="icon-btn icon-btn--tiny icon-btn--row" type="button" data-journal-action="move-month" data-id="${transaction.id}" aria-label="Перенести в другой месяц" title="Перенести в другой месяц">${Utils.icon("calendarMove")}</button>
-            <button class="icon-btn icon-btn--tiny icon-btn--row" type="button" data-journal-action="delete" data-id="${transaction.id}" aria-label="Удалить">${Utils.icon("close")}</button>
+            <button class="icon-btn icon-btn--tiny icon-btn--row icon-btn--danger" type="button" data-journal-action="delete" data-id="${transaction.id}" aria-label="Удалить">${Utils.icon("close")}</button>
             </div>
           </div>
         </div>
@@ -715,7 +715,7 @@ Object.assign(UI, {
           <div class="entry-field__control entry-field__control--actions">
             <div class="entry-actions__buttons">
             <button class="icon-btn icon-btn--tiny icon-btn--row icon-btn--buy" type="button" data-journal-action="fulfill-wish" data-id="${item.id}" aria-label="Купить">${Utils.icon("cart")}</button>
-            <button class="icon-btn icon-btn--tiny icon-btn--row" type="button" data-journal-action="delete-wish" data-id="${item.id}" aria-label="Удалить">${Utils.icon("close")}</button>
+            <button class="icon-btn icon-btn--tiny icon-btn--row icon-btn--danger" type="button" data-journal-action="delete-wish" data-id="${item.id}" aria-label="Удалить">${Utils.icon("close")}</button>
             </div>
           </div>
         </div>
@@ -838,7 +838,7 @@ Object.assign(UI, {
               <div class="quick-card__actions">
                 <button class="chip-btn" type="button" data-setting-action="${categoryAction}" data-id="${item.id}" data-mode="${mode}">Категория</button>
                 <button class="chip-btn" type="button" data-setting-action="${editAction}" data-id="${item.id}" data-mode="${mode}">Редактировать</button>
-                <button class="chip-btn" type="button" data-setting-action="${deleteAction}" data-id="${item.id}" data-mode="${mode}">Удалить</button>
+                <button class="chip-btn chip-btn--danger" type="button" data-setting-action="${deleteAction}" data-id="${item.id}" data-mode="${mode}">Удалить</button>
               </div>
             </div>
           </article>
@@ -1036,7 +1036,7 @@ Object.assign(UI, {
       editButton.type = "button";
       editButton.dataset.action = "focus-transaction";
       editButton.dataset.id = transaction.id;
-      const deleteButton = Utils.createElement("button", "chip-btn", "Удалить");
+      const deleteButton = Utils.createElement("button", "chip-btn chip-btn--danger", "Удалить");
       deleteButton.type = "button";
       deleteButton.dataset.action = "delete-transaction";
       deleteButton.dataset.id = transaction.id;
@@ -1102,7 +1102,7 @@ Object.assign(UI, {
           </div>
           <div class="category-item__actions">
             <button class="chip-btn" type="button" data-action="edit-category" data-id="${category.id}">Редактировать</button>
-            <button class="chip-btn" type="button" data-action="delete-category" data-id="${category.id}">Удалить</button>
+            <button class="chip-btn chip-btn--danger" type="button" data-action="delete-category" data-id="${category.id}">Удалить</button>
           </div>
         </div>
       </article>
