@@ -779,7 +779,7 @@ Object.assign(UI, {
     modal.setAttribute("aria-hidden", "false");
     const dialog = modal.querySelector(".modal__dialog");
     if (dialog) {
-      dialog.setAttribute("role", "dialog");
+      if (!dialog.hasAttribute("role")) dialog.setAttribute("role", "dialog");
       dialog.setAttribute("aria-modal", "true");
       const heading = dialog.querySelector("h2, h3");
       if (heading) {
@@ -802,6 +802,11 @@ Object.assign(UI, {
     modal.classList.remove("is-open");
     modal.setAttribute("aria-hidden", "true");
     modal.querySelector(".modal__dialog")?.removeAttribute("aria-modal");
+    if (modalId === "confirmationModal" && typeof this.confirmationResolver === "function") {
+      const resolve = this.confirmationResolver;
+      this.confirmationResolver = null;
+      resolve(false);
+    }
     if (!document.querySelector(".modal.is-open")) {
       [Utils.$("authScreen"), Utils.$("appShell")].forEach((surface) => {
         if (surface) surface.inert = false;
@@ -826,8 +831,56 @@ Object.assign(UI, {
   },
 
   closeModals() {
-    ["authModal", "accountMenuModal", "transactionModal", "moveTransactionModal", "categoryModal", "templateModal", "goalModal", "pickerModal", "syncChoiceModal", "recoveryCodeModal", "passwordChangeModal", "passwordRecoveryModal", "sessionsModal"]
+    ["authModal", "accountMenuModal", "transactionModal", "moveTransactionModal", "categoryModal", "templateModal", "goalModal", "pickerModal", "syncChoiceModal", "recoveryCodeModal", "passwordChangeModal", "passwordRecoveryModal", "sessionsModal", "confirmationModal"]
       .forEach((modalId) => this.closeModal(modalId));
+  },
+
+  confirmAction({
+    title = "Подтвердите действие",
+    message = "",
+    acceptLabel = "Продолжить",
+    cancelLabel = "Отмена",
+    tone = "default"
+  } = {}) {
+    if (typeof this.confirmationResolver === "function") {
+      this.confirmationResolver(false);
+      this.confirmationResolver = null;
+    }
+    const modal = Utils.$("confirmationModal");
+    if (!modal) return Promise.resolve(false);
+    Utils.$("confirmationTitle").textContent = title;
+    Utils.$("confirmationMessage").textContent = message;
+    Utils.$("confirmationAcceptBtn").textContent = acceptLabel;
+    Utils.$("confirmationCancelBtn").textContent = cancelLabel;
+    modal.dataset.tone = tone;
+    this.openModal("confirmationModal");
+    return new Promise((resolve) => {
+      this.confirmationResolver = resolve;
+    });
+  },
+
+  resolveConfirmation(accepted) {
+    const resolve = this.confirmationResolver;
+    this.confirmationResolver = null;
+    this.closeModal("confirmationModal");
+    if (typeof resolve === "function") resolve(Boolean(accepted));
+  },
+
+  setBusy(element, busy, label = "Выполняется…") {
+    if (!(element instanceof HTMLElement)) return;
+    if (busy) {
+      element.dataset.idleLabel = element.textContent;
+      element.textContent = label;
+      element.setAttribute("aria-busy", "true");
+      if ("disabled" in element) element.disabled = true;
+      element.classList.add("is-busy");
+      return;
+    }
+    if (element.dataset.idleLabel) element.textContent = element.dataset.idleLabel;
+    delete element.dataset.idleLabel;
+    element.removeAttribute("aria-busy");
+    if ("disabled" in element) element.disabled = false;
+    element.classList.remove("is-busy");
   },
 
   isMobileViewport() {
@@ -1313,9 +1366,16 @@ Object.assign(UI, {
       const isActive = button.dataset.tabTarget === Store.activeTab;
       button.classList.toggle("is-active", isActive);
       button.setAttribute("aria-pressed", String(isActive));
-      if (button.classList.contains("mobile-bottom-nav__btn")) {
-        button.setAttribute("aria-current", isActive ? "page" : "false");
-      }
+      if (isActive) button.setAttribute("aria-current", "page");
+      else button.removeAttribute("aria-current");
     });
+    const title = ({
+      overviewTab: "Бюджет",
+      analyticsTab: "Аналитика",
+      monthsTab: "Месяцы",
+      settingsTab: "Настройки"
+    })[Store.activeTab];
+    const announcer = Utils.$("routeAnnouncer");
+    if (announcer && title) announcer.textContent = `Открыт раздел: ${title}`;
   },
 });

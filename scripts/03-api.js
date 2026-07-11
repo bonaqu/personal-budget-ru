@@ -58,28 +58,39 @@ const Api = {
       .replace(/([?&](?!(?:login|password|token)=)[^=]+)=([^&]+)/gi, "$1=[value]");
   },
 
+  getRemediation(code = "", status = 0, serverCode = "") {
+    if (code === "OFFLINE") return "Проверьте сеть; изменения остаются в очереди на этом устройстве.";
+    if (["TIMEOUT", "NETWORK_UNAVAILABLE"].includes(code)) return "Повторите позже; локальные данные не удаляются.";
+    if (status === 401) return "Проверьте данные входа или войдите заново, если сессия истекла.";
+    if (status === 429) return "Дождитесь окончания ограничения попыток и не повторяйте запрос циклически.";
+    if (serverCode === "REVISION_CONFLICT") return "Сравните локальную и облачную ревизии в окне разрешения конфликта.";
+    if (status >= 500) return "Сообщите requestId при обращении; локальная копия и очередь синхронизации сохранены.";
+    return "Проверьте код ответа и повторите только безопасное действие.";
+  },
+
   logTechnicalIssue(label, details = {}, level = "warning") {
     if (typeof console === "undefined") {
       return;
     }
     const method = typeof console[level] === "function" ? level : "warn";
-    const parts = [
-      `code=${details.code || "UNKNOWN"}`,
-      `method=${details.method || "GET"}`,
-      `endpoint=${this.redactEndpoint(details.endpoint || "")}`,
-      `apiBase=${CONFIG.API_BASE}`,
-      `online=${typeof navigator !== "undefined" ? navigator.onLine : "unknown"}`
-    ];
-    if (details.status) {
-      parts.push(`status=${details.status}`);
-    }
-    if (details.serverCode) {
-      parts.push(`serverCode=${details.serverCode}`);
-    }
-    if (details.message) {
-      parts.push(`message=${details.message}`);
-    }
-    console[method](`[Budget API] ${label} | ${parts.join(" | ")}`);
+    const safeDetails = {
+      code: details.code || "UNKNOWN",
+      status: details.status || null,
+      serverCode: details.serverCode || null,
+      requestId: details.requestId || null,
+      method: details.method || "GET",
+      endpoint: this.redactEndpoint(details.endpoint || ""),
+      apiBase: CONFIG.API_BASE,
+      online: typeof navigator !== "undefined" ? navigator.onLine : "unknown",
+      retryable: [0, 408, 429, 500, 502, 503, 504].includes(Number(details.status || 0)) || ["OFFLINE", "TIMEOUT", "NETWORK_UNAVAILABLE"].includes(details.code),
+      remediation: this.getRemediation(details.code, Number(details.status || 0), details.serverCode),
+      message: details.message || "Запрос не выполнен"
+    };
+    console.groupCollapsed(`[Budget API] ${label}: ${safeDetails.code}${safeDetails.requestId ? ` · ${safeDetails.requestId}` : ""}`);
+    console[method](safeDetails.message);
+    console.table(safeDetails);
+    console.info("Логин, пароль, токен и финансовые данные намеренно не выводятся в консоль.");
+    console.groupEnd();
   },
 
   messageForStatus(status, serverMessage = "") {
@@ -121,6 +132,7 @@ const Api = {
       signal: controller.signal,
       body: hasBody ? JSON.stringify(body) : undefined
     });
+    const requestId = response.headers.get("x-request-id") || "";
 
     if (!response.ok) {
       let payload = null;
@@ -144,7 +156,8 @@ const Api = {
           method: normalizedMethod,
           status: response.status,
           payload,
-          serverMessage
+          serverMessage,
+          requestId
         }
       );
       const serverCode = String(payload?.code || payload?.errorCode || "");
@@ -154,16 +167,19 @@ const Api = {
         method: normalizedMethod,
         status: response.status,
         serverCode,
+        requestId,
         code: error.code,
         message: error.message
       }, response.status >= 500 ? "error" : "warning");
 
       Diagnostics.report("api-request:failed", {
+        _consoleReported: true,
         endpoint: this.redactEndpoint(endpoint),
         method: normalizedMethod,
         status: response.status,
         code: error.code,
-        message: error.message
+        message: error.message,
+        requestId
       }, response.status >= 500 ? "error" : "warning");
 
       throw error;
@@ -195,6 +211,7 @@ const Api = {
     }, normalized.code === "REQUEST_FAILED" ? "error" : "warning");
 
     Diagnostics.report("api-request:failed", {
+      _consoleReported: true,
       endpoint: this.redactEndpoint(endpoint),
       method,
       code: normalized.code,

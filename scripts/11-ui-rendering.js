@@ -396,14 +396,30 @@ Object.assign(UI, {
       error: "Ошибка",
       info: "Информация"
     };
+    const stack = Utils.$("toastStack");
+    if (!stack) return;
+    const duplicate = Array.from(stack.querySelectorAll(".toast")).find((item) => item.dataset.message === String(message));
+    if (duplicate) {
+      duplicate.dataset.repeatCount = String(Number(duplicate.dataset.repeatCount || 1) + 1);
+      duplicate.querySelector(".toast__count")?.remove();
+      duplicate.appendChild(Utils.createElement("span", "toast__count", `Повторено: ${duplicate.dataset.repeatCount}`));
+      return;
+    }
     const toast = Utils.createElement("div", `toast toast--${tone}`);
+    toast.dataset.message = String(message);
     toast.setAttribute("role", tone === "error" ? "alert" : "status");
     toast.setAttribute("aria-live", tone === "error" ? "assertive" : "polite");
     const title = Utils.createElement("strong", "", labels[tone] || labels.info);
     const text = Utils.createElement("span", "", message);
-    toast.append(title, text);
-    Utils.$("toastStack").appendChild(toast);
-    setTimeout(() => this.dismissToast(toast), 3400);
+    const close = Utils.createElement("button", "toast__close", "×");
+    close.type = "button";
+    close.setAttribute("aria-label", "Закрыть уведомление");
+    close.addEventListener("click", () => this.dismissToast(toast));
+    toast.append(title, text, close);
+    stack.appendChild(toast);
+    while (stack.children.length > 4) stack.firstElementChild?.remove();
+    const timeout = tone === "error" ? 8000 : tone === "warning" ? 6000 : 4200;
+    setTimeout(() => this.dismissToast(toast), timeout);
   },
 
   dismissToast(toast) {

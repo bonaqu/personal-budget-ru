@@ -1353,6 +1353,12 @@ const UI = {
     });
 
       document.addEventListener("click", (event) => {
+        const confirmationResult = event.target.closest("[data-confirm-result]");
+        if (confirmationResult) {
+          this.resolveConfirmation(confirmationResult.dataset.confirmResult === "accept");
+          return;
+        }
+
         const heatmapHintTarget = event.target.closest(".heatmap-v2__hint, .heatmap-v2__hint-bubble");
         if (!heatmapHintTarget && this.heatmapHintOpen) {
           this.setHeatmapHintOpen(false);

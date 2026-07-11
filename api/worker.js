@@ -3,9 +3,11 @@
 const LOGIN_RE = /^[A-Za-z0-9._-]{3,32}$/;
 const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_MAX_LENGTH = 128;
-const DEFAULT_PBKDF2_ITERATIONS = 600_000;
-const MIN_PBKDF2_ITERATIONS = 300_000;
-const MAX_PBKDF2_ITERATIONS = 1_200_000;
+// Cloudflare's production WebCrypto rejects PBKDF2 values above 100,000.
+// Keep the configured value pinned to the strongest platform-supported setting.
+const DEFAULT_PBKDF2_ITERATIONS = 100_000;
+const MIN_PBKDF2_ITERATIONS = 100_000;
+const MAX_PBKDF2_ITERATIONS = 100_000;
 const SESSION_IDLE_MS = 12 * 60 * 60 * 1000;
 const SESSION_ABSOLUTE_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_TOUCH_INTERVAL_MS = 5 * 60 * 1000;
@@ -62,7 +64,7 @@ export default {
       }
     } catch (error) {
       const status = Number(error?.status) || 500;
-      const code = error?.code || "INTERNAL_ERROR";
+      const code = typeof error?.code === "string" && error.code ? error.code : "INTERNAL_ERROR";
       logEvent(status >= 500 ? "error" : "warn", "api.request.failed", {
         requestId: meta.requestId,
         endpoint: meta.endpoint,

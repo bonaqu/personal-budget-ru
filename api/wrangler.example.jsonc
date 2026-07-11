@@ -9,7 +9,7 @@
   },
   "vars": {
     "CORS_ALLOW_ORIGINS": "http://127.0.0.1:4317,https://YOUR_GITHUB_PAGES_ORIGIN",
-    "PBKDF2_ITERATIONS": "600000",
+    "PBKDF2_ITERATIONS": "100000",
     "MAX_DATA_BYTES": "8000000"
   },
   "d1_databases": [

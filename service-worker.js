@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "personal-budget-shell-v4-20260710";
+const CACHE_NAME = "personal-budget-shell-v5-20260711";
 const BUILD_ASSETS = ["__VITE_BUILD_ASSETS__"];
 const APP_SHELL = BUILD_ASSETS.length === 1 && BUILD_ASSETS[0] === "__VITE_BUILD_ASSETS__" ? [
   "./",

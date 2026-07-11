@@ -2108,6 +2108,7 @@ const App = {
       return;
     }
     UI.clearBackupStatus();
+    UI.setBusy(Utils.$("importBtn"), true, "Проверяем файл…");
     if (file.size > CONFIG.MAX_BACKUP_BYTES) {
       const message = "Файл резервной копии слишком большой. Выберите JSON-файл размером до 8 МБ.";
       Diagnostics.report("import-backup:file-too-large", {
@@ -2118,6 +2119,7 @@ const App = {
       UI.setBackupStatus(message, "error");
       UI.toast(message, "error");
       event.target.value = "";
+      UI.setBusy(Utils.$("importBtn"), false);
       return;
     }
     const reader = new FileReader();
@@ -2129,8 +2131,9 @@ const App = {
       UI.setBackupStatus("Не получилось открыть файл резервной копии.", "error");
       UI.toast("Не получилось прочитать резервную копию", "error");
       event.target.value = "";
+      UI.setBusy(Utils.$("importBtn"), false);
     };
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
         if (typeof reader.result !== "string") {
           throw new Error("Файл бэкапа прочитан в неподдерживаемом формате.");
@@ -2145,9 +2148,12 @@ const App = {
           audit
         });
         const summary = audit.summary;
-        const confirmed = window.confirm(
-          `Импорт заменит текущий бюджет.\n\nВ файле: ${summary.transactions || 0} операций, ${summary.months || 0} месяцев, ${summary.categories || 0} категорий.\n\nПеред заменой будет автоматически скачана резервная копия текущих данных. Продолжить?`
-        );
+        const confirmed = await UI.confirmAction({
+          title: "Заменить текущий бюджет?",
+          message: `В файле: ${summary.transactions || 0} операций, ${summary.months || 0} месяцев и ${summary.categories || 0} категорий. Перед заменой автоматически скачается резервная копия текущих данных.`,
+          acceptLabel: "Создать копию и импортировать",
+          tone: "danger"
+        });
         if (!confirmed) {
           UI.setBackupStatus("Импорт отменен. Текущие данные не изменены.", "info");
           return;
@@ -2172,6 +2178,7 @@ const App = {
         UI.toast(message, "error");
       } finally {
         event.target.value = "";
+        UI.setBusy(Utils.$("importBtn"), false);
       }
     };
     reader.readAsText(file, "utf-8");
@@ -2191,12 +2198,24 @@ const Diagnostics = {
     return ["localhost", "127.0.0.1", "::1"].includes(location.hostname);
   },
 
+  sanitize(value, depth = 0) {
+    if (depth > 3) return "[details omitted]";
+    if (Array.isArray(value)) return value.slice(0, 20).map((item) => this.sanitize(item, depth + 1));
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => {
+      if (/password|token|secret|recovery|cookie|authorization|data$/i.test(key)) return [key, "[hidden]"];
+      if (/login/i.test(key)) return [key, item ? "[account]" : null];
+      return [key, this.sanitize(item, depth + 1)];
+    }));
+  },
+
   report(label, payload, level = "info") {
     const method = typeof console[level] === "function" ? level : "info";
+    const safePayload = this.sanitize(payload);
     this.events.push({
       label,
       level,
-      payload,
+      payload: safePayload,
       at: Utils.nowISO()
     });
     if (this.events.length > this.maxEvents) {
@@ -2205,18 +2224,19 @@ const Diagnostics = {
     if (level === "error") {
       this.errorCount += 1;
     }
-    if (!this.shouldLogToConsole(level)) {
+    if (!this.shouldLogToConsole(level) || payload?._consoleReported) {
       return;
     }
-    const lineDetails = payload && typeof payload === "object"
-      ? Object.entries(payload)
+    const lineDetails = safePayload && typeof safePayload === "object"
+      ? Object.entries(safePayload)
+        .filter(([key]) => !key.startsWith("_"))
         .filter(([, value]) => value !== null && value !== undefined && typeof value !== "object")
         .map(([key, value]) => `${key}=${String(value)}`)
         .join(" | ")
       : String(payload ?? "");
     console[method](`[Budget Diagnostics] ${label}${lineDetails ? ` | ${lineDetails}` : ""}`);
     console.groupCollapsed(`[Budget Audit] ${label}`);
-    console[method](payload);
+    console[method](safePayload);
     console.groupEnd();
   },
 
@@ -2225,6 +2245,10 @@ const Diagnostics = {
       return;
     }
     this.installed = true;
+    console.info(
+      `[Budget] Personal Budget Tracker v${CONFIG.APP_VERSION} · API v${Api.capabilities.apiVersion} · ${navigator.onLine ? "online" : "offline"}`
+    );
+    console.info("[Budget] Безопасная диагностика: BudgetTrackerDiagnostics.snapshot() и BudgetTrackerDiagnostics.help()");
 
     window.addEventListener("error", (event) => {
       this.report("runtime-error", {
@@ -2248,7 +2272,7 @@ const Diagnostics = {
     this.report("startup-state", {
       auth: {
         isAuthenticated: Auth.isAuthenticated(),
-        login: Auth.getLogin() || null
+        accountSelected: Boolean(Auth.getLogin())
       },
       syncStatus: Sync.status,
       data: summarizeNormalizedData(Store.data)
@@ -2261,7 +2285,7 @@ const Diagnostics = {
       online: navigator.onLine,
       session: {
         authenticated: Auth.isAuthenticated(),
-        login: Auth.getLogin() || null
+        accountSelected: Boolean(Auth.getLogin())
       },
       sync: {
         status: Sync.status,
@@ -2272,6 +2296,15 @@ const Diagnostics = {
     };
   }
 };
+
+window.BudgetTrackerDiagnostics = Object.freeze({
+  snapshot: () => Diagnostics.snapshot(),
+  help: () => ({
+    purpose: "Безопасный снимок состояния приложения без паролей, токенов и финансовых записей.",
+    support: "При ошибке API передайте код, HTTP-статус и requestId из группы [Budget API].",
+    offline: "При потере сети изменения остаются на устройстве и отправляются после восстановления связи."
+  })
+});
 
 if (["localhost", "127.0.0.1", "::1"].includes(location.hostname)) {
   window.BudgetTrackerDebug = {

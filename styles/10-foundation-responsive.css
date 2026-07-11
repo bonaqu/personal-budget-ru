@@ -394,9 +394,9 @@
       180deg,
       color-mix(in srgb, var(--bg-solid) 95%, transparent),
       color-mix(in srgb, var(--bg-solid) 97%, transparent)
-    ) !important;
-  backdrop-filter: none !important;
-  opacity: 1 !important;
+    );
+  backdrop-filter: none;
+  opacity: 1;
   box-shadow:
     0 18px 38px rgba(0, 0, 0, 0.26),
     inset 0 1px 0 rgba(255, 255, 255, 0.035);
@@ -419,7 +419,7 @@
       180deg,
       color-mix(in srgb, var(--success) 7%, color-mix(in srgb, var(--bg-solid) 95%, transparent)),
       color-mix(in srgb, var(--bg-solid) 97%, transparent)
-    ) !important;
+    );
 }
 
 .toast--warning {
@@ -429,7 +429,7 @@
       180deg,
       color-mix(in srgb, var(--warning) 7%, color-mix(in srgb, var(--bg-solid) 95%, transparent)),
       color-mix(in srgb, var(--bg-solid) 97%, transparent)
-    ) !important;
+    );
 }
 
 .toast--error {
@@ -439,7 +439,7 @@
       180deg,
       color-mix(in srgb, var(--danger) 7%, color-mix(in srgb, var(--bg-solid) 95%, transparent)),
       color-mix(in srgb, var(--bg-solid) 97%, transparent)
-    ) !important;
+    );
 }
 
 .toast--info {
@@ -449,7 +449,36 @@
       180deg,
       color-mix(in srgb, var(--info) 7%, color-mix(in srgb, var(--bg-solid) 95%, transparent)),
       color-mix(in srgb, var(--bg-solid) 97%, transparent)
-    ) !important;
+    );
+}
+
+.toast {
+  position: relative;
+  padding-inline-end: 48px;
+  overflow-wrap: anywhere;
+}
+
+.toast__close {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-end: 8px;
+  inline-size: 34px;
+  block-size: 34px;
+  border: 0;
+  border-radius: 50%;
+  color: var(--text-soft);
+  background: transparent;
+  font-size: 1.2rem;
+}
+
+.toast__close:hover,
+.toast__close:focus-visible {
+  color: var(--text);
+  background: var(--bg-soft-2);
+}
+
+.toast__count {
+  font-size: 0.72rem;
 }
 
 @keyframes pulseHalo {
@@ -668,6 +697,10 @@
 
   .backup-actions {
     flex-direction: column;
+  }
+
+  .confirmation-actions {
+    grid-template-columns: 1fr;
   }
 
   .toast-stack {

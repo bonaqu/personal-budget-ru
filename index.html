@@ -20,6 +20,8 @@
   <script vite-ignore src="app.bundle.js" defer></script>
 </head>
 <body class="app-booting" data-theme="dark">
+  <a class="skip-link" href="#mainContent">Перейти к основному содержимому</a>
+  <div class="visually-hidden" id="routeAnnouncer" role="status" aria-live="polite" aria-atomic="true"></div>
   <aside class="update-banner" id="updateBanner" role="status" aria-live="polite" hidden>
     <span>Доступна новая версия приложения. Локальные изменения уже сохранены.</span>
     <button class="btn btn--primary" id="applyUpdateBtn" type="button">Обновить</button>
@@ -288,7 +290,7 @@
       </div>
     </div>
 
-    <main class="page-grid">
+    <main class="page-grid" id="mainContent" tabindex="-1">
       <section class="tab-panel is-active" id="overviewTab">
         <div class="hero-strip glass-card hero-strip--compact">
           <div class="hero-strip__content">
@@ -401,9 +403,9 @@
               </div>
               <div class="month-balance-legend" id="monthBalanceLegend" aria-hidden="true"></div>
               <div class="chart-wrap chart-wrap--trend-balance">
-                <canvas id="monthBalanceChart"></canvas>
+                <canvas id="monthBalanceChart" role="img" aria-label="График изменения баланса по дням месяца" aria-describedby="monthBalanceChartNote"></canvas>
               </div>
-              <p class="chart-note">Линия показывает изменение баланса по дням, столбцы — чистое движение денег за день, пунктир — сегодняшний день.</p>
+              <p class="chart-note" id="monthBalanceChartNote">Линия показывает изменение баланса по дням, столбцы — чистое движение денег за день, пунктир — сегодняшний день.</p>
             </div>
           </article>
             </section>
@@ -722,8 +724,9 @@
             </div>
             <div class="cashflow-workspace" id="cashflowWorkspace">
               <div class="chart-wrap chart-wrap--lg">
-                <canvas id="cashFlowChart"></canvas>
+                <canvas id="cashFlowChart" role="img" aria-label="График доходов, расходов и чистого денежного потока" aria-describedby="cashFlowChartSummary"></canvas>
               </div>
+              <p class="visually-hidden" id="cashFlowChartSummary">Текстовые итоги графика находятся в карточках рядом.</p>
               <div class="cashflow-strip" id="cashflowStrip"></div>
             </div>
           </article>
@@ -737,8 +740,9 @@
             </div>
             <div class="analytics-breakdown" id="analyticsBreakdown">
               <div class="chart-wrap chart-wrap--md chart-wrap--semi-donut">
-                <canvas id="categoryChart"></canvas>
+                <canvas id="categoryChart" role="img" aria-label="Диаграмма расходов по категориям" aria-describedby="categoryChartSummary"></canvas>
               </div>
+              <p class="visually-hidden" id="categoryChartSummary">Текстовая разбивка диаграммы находится в списке категорий рядом.</p>
               <div class="analytics-breakdown__legend" id="analyticsBreakdownLegend"></div>
             </div>
           </article>
@@ -1494,6 +1498,22 @@
     </div>
   </div>
 
+  <div class="modal" id="confirmationModal" aria-hidden="true">
+    <div class="modal__backdrop" data-confirm-result="cancel"></div>
+    <div class="modal__dialog glass-card modal__dialog--sm" role="alertdialog" aria-modal="true" aria-labelledby="confirmationTitle" aria-describedby="confirmationMessage">
+      <button class="modal__close" type="button" data-confirm-result="cancel" aria-label="Отменить и закрыть">×</button>
+      <div class="modal__head">
+        <p class="eyebrow" id="confirmationEyebrow">Подтверждение</p>
+        <h3 id="confirmationTitle">Подтвердите действие</h3>
+        <p class="modal__subtext" id="confirmationMessage"></p>
+      </div>
+      <div class="confirmation-actions">
+        <button class="btn btn--ghost" id="confirmationCancelBtn" type="button" data-confirm-result="cancel">Отмена</button>
+        <button class="btn btn--primary" id="confirmationAcceptBtn" type="button" data-confirm-result="accept">Продолжить</button>
+      </div>
+    </div>
+  </div>
+
   <template id="transactionFormTemplate">
     <form id="transactionForm" novalidate>
       <div id="typeSwitch">
@@ -1540,7 +1560,7 @@
     <div class="budget-daypad__grid" id="budgetDayPadGrid" role="group" aria-label="Выбор дня месяца"></div>
   </div>
 
-  <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
+  <div class="toast-stack" id="toastStack" aria-label="Уведомления"></div>
 </body>
 </html>
 

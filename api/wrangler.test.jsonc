@@ -5,7 +5,7 @@
   "compatibility_date": "2026-07-10",
   "vars": {
     "CORS_ALLOW_ORIGINS": "http://app.test",
-    "PBKDF2_ITERATIONS": "300000",
+    "PBKDF2_ITERATIONS": "100000",
     "MAX_DATA_BYTES": "8000000"
   },
   "d1_databases": [

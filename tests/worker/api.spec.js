@@ -3,6 +3,11 @@ import { describe, expect, it } from "vitest";
 
 const ORIGIN = "http://app.test";
 
+async function sha256Hex(value) {
+  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 async function api(path, { method = "GET", token = "", body } = {}) {
   const headers = { Origin: ORIGIN };
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -16,6 +21,22 @@ async function api(path, { method = "GET", token = "", body } = {}) {
 }
 
 describe("Personal Budget Worker", () => {
+  it("logs in with a legacy SHA-256 password and upgrades it to the production PBKDF2 limit", async () => {
+    const login = `legacy_${crypto.randomUUID().slice(0, 8)}`;
+    const password = "legacy password that remains valid";
+    const now = new Date().toISOString();
+    await env.DB.prepare(
+      "INSERT INTO users (login, password_hash, password_algo, data_json, created_at, updated_at, revision) VALUES (?, ?, '', '{}', ?, ?, 0)"
+    ).bind(login, await sha256Hex(password), now, now).run();
+
+    const result = await api("/login", { method: "POST", body: { login, password, deviceName: "Legacy test" } });
+    expect(result.response.status).toBe(200);
+    const upgraded = await env.DB.prepare(
+      "SELECT password_algo, password_iterations, length(password_salt) AS salt_length FROM users WHERE login = ?"
+    ).bind(login).first();
+    expect(upgraded).toMatchObject({ password_algo: "pbkdf2-sha256", password_iterations: 100000, salt_length: 32 });
+  });
+
   it("registers, saves with CAS and rejects a stale revision", async () => {
     const login = `cas_${crypto.randomUUID().slice(0, 8)}`;
     const registered = await api("/register", {

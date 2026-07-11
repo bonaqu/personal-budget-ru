@@ -143,14 +143,17 @@ test("backup import is atomic and exports the same financial record", async ({ p
     }];
     return { format: "personal-budget-tracker", schemaVersion: CONFIG.APP_VERSION, data };
   });
-  page.on("dialog", (dialog) => dialog.accept());
   const [preImportDownload] = await Promise.all([
     page.waitForEvent("download"),
-    page.locator("#importFileInput").setInputFiles({
-      name: "roundtrip.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(JSON.stringify(backup), "utf8")
-    })
+    (async () => {
+      await page.locator("#importFileInput").setInputFiles({
+        name: "roundtrip.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(JSON.stringify(backup), "utf8")
+      });
+      await expect(page.locator("#confirmationModal")).toBeVisible();
+      await page.locator("#confirmationAcceptBtn").click();
+    })()
   ]);
   expect(preImportDownload.suggestedFilename()).toContain("before_import");
   await expect.poll(() => page.evaluate(() => Store.data.transactions.some((item) => item.id === "backup-roundtrip"))).toBe(true);
@@ -166,4 +169,81 @@ test("backup import is atomic and exports the same financial record", async ({ p
     date: "2024-02-29",
     description: "Проверка backup"
   });
+});
+
+test("navigation and charts expose useful screen-reader semantics", async ({ page }) => {
+  await loginDemo(page);
+  await expect(page.locator(".skip-link")).toHaveAttribute("href", "#mainContent");
+  await page.locator(".skip-link").focus();
+  await expect(page.locator(".skip-link")).toBeFocused();
+  await expect(page.locator('[data-tab-target="overviewTab"][aria-current="page"]')).toHaveCount(2);
+
+  await page.locator('.sidebar-nav [data-tab-target="analyticsTab"]').click();
+  await expect(page.locator("#routeAnnouncer")).toHaveText("Открыт раздел: Аналитика");
+  await expect(page.locator('[data-tab-target="analyticsTab"][aria-current="page"]')).toHaveCount(2);
+  await expect(page.locator('#cashFlowChart[role="img"]')).toHaveAttribute("aria-describedby", "cashFlowChartSummary");
+  await expect(page.locator('#categoryChart[role="img"]')).toHaveAttribute("aria-describedby", "categoryChartSummary");
+});
+
+test("long labels and large amounts fit narrow and 200 percent equivalent layouts", async ({ page }) => {
+  await loginDemo(page);
+  await page.evaluate(() => {
+    const raw = defaultData();
+    raw.settings.categories.push({
+      id: "cat_long_layout",
+      name: "Очень длинная категория для проверки переноса",
+      type: "expense",
+      color: "#58a6ff"
+    });
+    raw.transactions = [{
+      id: "large-layout-value",
+      type: "expense",
+      flowKind: "standard",
+      amount: 999999999999.99,
+      categoryId: "cat_long_layout",
+      description: "Длинное описание операции без риска горизонтальной прокрутки",
+      date: "2026-07-10",
+      position: 0,
+      createdAt: "2026-07-10T00:00:00.000Z",
+      updatedAt: "2026-07-10T00:00:00.000Z"
+    }];
+    Store.viewMonth = "2026-07";
+    Store.setData(normalizeData(raw), { save: false });
+    UI.renderApp();
+  });
+
+  for (const width of [320, 640]) {
+    await page.setViewportSize({ width, height: 900 });
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow, `${width}px viewport must fit; 640px represents a 1280px screen at 200% zoom`).toBeLessThanOrEqual(1);
+  }
+  await expect(page.getByText("Очень длинная категория для проверки переноса").first()).toBeVisible();
+});
+
+test("API console diagnostics include request id but never credentials", async ({ page }) => {
+  const consoleLines = [];
+  page.on("console", (message) => consoleLines.push(message.text()));
+  await page.route("https://personal-budget-api.bonaqu.workers.dev/login", async (route) => {
+    await route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      headers: {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-request-id",
+        "x-request-id": "req-console-test"
+      },
+      body: JSON.stringify({ ok: false, error: "Внутренняя ошибка сервиса", code: "INTERNAL_ERROR" })
+    });
+  });
+  await page.goto("/");
+  await page.evaluate(async () => {
+    try {
+      await Api.request("/login", "POST", { login: "console_probe", password: "DoNotLog-Secret-42" });
+    } catch {}
+  });
+  const output = consoleLines.join("\n");
+  expect(output).toContain("[Budget API] request failed: HTTP_500");
+  expect(output).toContain("req-console-test");
+  expect(output).not.toContain("DoNotLog-Secret-42");
+  expect(output).not.toContain("console_probe");
 });
