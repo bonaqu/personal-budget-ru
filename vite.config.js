@@ -63,7 +63,7 @@ function classicBundlePlugin() {
         "./index.html",
         "./app.bundle.js",
         "./vendor/chart.umd.min.js",
-        ...Object.keys(bundle).filter((file) => file !== "service-worker.js").map((file) => `./${file}`)
+        ...Object.keys(bundle).filter((file) => file.endsWith(".css")).map((file) => `./${file}`)
       ]));
       const manifest = buildAssets.map((file) => JSON.stringify(file)).join(",\n  ");
       const workerSource = fs.readFileSync(path.resolve(__dirname, "service-worker.js"), "utf8")
