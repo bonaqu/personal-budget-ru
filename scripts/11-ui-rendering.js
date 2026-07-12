@@ -327,7 +327,9 @@ Object.assign(UI, {
       this.renderAnalyticsBreakdownLegend();
       this.renderPaymentCalendar();
       this.renderHeatmap();
-      this.renderAnalyticsAdvancedContent(this.analyticsAdvancedView);
+      this.renderAnalyticsAdvancedContent("deep");
+      this.renderAnalyticsAdvancedContent("forecast");
+      this.renderAnalyticsAdvancedContent("recurring");
       this.renderAnalyticsAdvancedState();
       chartsReady.then(() => {
         if (Store.activeTab !== "analyticsTab") {

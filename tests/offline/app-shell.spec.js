@@ -2,7 +2,7 @@ const { test, expect } = require("@playwright/test");
 
 test("versioned app shell starts after the network disappears", async ({ page, context }) => {
   await page.goto("/?sw-test=1");
-  await page.evaluate(async () => {
+  const cachedPaths = await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
     if (!navigator.serviceWorker.controller) {
       await new Promise((resolve) => {
@@ -23,7 +23,13 @@ test("versioned app shell starts after the network disappears", async ({ page, c
         throw new Error(`Invalid cached stylesheet response: ${path} (${contentType})`);
       }
     }
+    return (await cache.keys()).map((request) => new URL(request.url).pathname);
   });
+  expect(cachedPaths).toEqual(expect.arrayContaining([
+    expect.stringMatching(/manifest\.webmanifest$/),
+    expect.stringMatching(/icons\/icon-192\.png$/),
+    expect.stringMatching(/icons\/icon-512\.png$/)
+  ]));
 
   await context.setOffline(true);
   await page.reload({ waitUntil: "domcontentloaded" });

@@ -21,6 +21,21 @@ async function api(path, { method = "GET", token = "", body } = {}) {
 }
 
 describe("Personal Budget Worker", () => {
+  it("reports D1 readiness and exposes safe diagnostics", async () => {
+    const result = await api("/health");
+    expect(result.response.status).toBe(200);
+    expect(result.json).toMatchObject({
+      ok: true,
+      service: "personal-budget-worker",
+      status: "ok",
+      storage: { type: "cloudflare-d1", status: "ready" },
+      apiVersion: 2
+    });
+    expect(result.response.headers.get("x-api-version")).toBe("2");
+    expect(result.response.headers.get("server-timing")).toMatch(/^app;dur=\d+$/);
+    expect(result.response.headers.get("access-control-expose-headers")).toContain("X-Request-Id");
+  });
+
   it("logs in with a legacy SHA-256 password and upgrades it to the production PBKDF2 limit", async () => {
     const login = `legacy_${crypto.randomUUID().slice(0, 8)}`;
     const password = "legacy password that remains valid";

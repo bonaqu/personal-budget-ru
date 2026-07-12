@@ -2,7 +2,8 @@
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "personal-budget-api-test",
   "main": "worker.js",
-  "compatibility_date": "2026-07-10",
+  "compatibility_date": "2026-07-11",
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "vars": {
     "CORS_ALLOW_ORIGINS": "http://app.test",
     "PBKDF2_ITERATIONS": "100000",

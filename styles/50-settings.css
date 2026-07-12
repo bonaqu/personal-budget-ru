@@ -231,6 +231,59 @@
   color: var(--text-soft);
 }
 
+.pwa-install {
+  margin-top: 14px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--info) 18%, var(--line));
+  border-radius: 15px;
+  background:
+    radial-gradient(circle at 92% 0%, rgb(var(--info-rgb) / 0.08), transparent 44%),
+    var(--surface-card-soft);
+}
+
+.pwa-install[hidden] {
+  display: none;
+}
+
+.pwa-install__copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.pwa-install__copy strong {
+  color: var(--text-main);
+  font-size: 0.82rem;
+}
+
+.pwa-install__copy span {
+  color: var(--text-soft);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.pwa-install[data-state="installed"] {
+  border-color: color-mix(in srgb, var(--success) 24%, var(--line));
+  background:
+    radial-gradient(circle at 92% 0%, rgb(var(--success-rgb) / 0.09), transparent 44%),
+    var(--surface-card-soft);
+}
+
+@media (max-width: 640px) {
+  .pwa-install {
+    grid-template-columns: 1fr;
+  }
+
+  .pwa-install .btn {
+    width: 100%;
+  }
+}
+
 .settings-layout .empty-state--compact {
   min-height: 132px;
   display: grid;

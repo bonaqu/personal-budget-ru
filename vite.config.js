@@ -61,6 +61,12 @@ function classicBundlePlugin() {
       const buildAssets = Array.from(new Set([
         "./",
         "./index.html",
+        "./manifest.webmanifest",
+        "./icons/app-icon.svg",
+        "./icons/icon-192.png",
+        "./icons/icon-512.png",
+        "./icons/icon-maskable-512.png",
+        "./icons/apple-touch-icon.png",
         "./app.bundle.js",
         "./vendor/chart.umd.min.js",
         ...Object.keys(bundle).filter((file) => file.endsWith(".css")).map((file) => `./${file}`)

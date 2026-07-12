@@ -2,11 +2,13 @@
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "personal-budget-api",
   "main": "worker.js",
-  "compatibility_date": "2026-07-10",
+  "compatibility_date": "2026-07-11",
   "observability": {
     "enabled": true,
-    "logs": { "head_sampling_rate": 1 }
+    "logs": { "enabled": true, "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.05 }
   },
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "vars": {
     "CORS_ALLOW_ORIGINS": "http://127.0.0.1:4317,https://YOUR_GITHUB_PAGES_ORIGIN",
     "PBKDF2_ITERATIONS": "100000",

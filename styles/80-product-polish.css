@@ -216,7 +216,7 @@
   color: var(--text-soft);
 }
 
-.analytics-panel--advanced[data-active-view="deep"] .deep-stat > strong {
+.analytics-panel--advanced .deep-stat > strong {
   color: color-mix(in srgb, var(--text-main) 88%, var(--accent));
   font-size: 0.75rem;
   line-height: 1.25;
@@ -5510,11 +5510,6 @@ body[data-theme="light"] .account-menu__status.is-error {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(
-      circle 150px at var(--goal-glow-x, 22%) var(--goal-glow-y, 8%),
-      color-mix(in srgb, var(--goal-color, var(--info)) 19%, rgba(255, 255, 255, 0.08)),
-      transparent 72%
-    ),
     linear-gradient(
       90deg,
       transparent,
@@ -5642,25 +5637,25 @@ body[data-theme="light"] .goal-card:not(.goal-card--adder):not(.goal-card--empty
 }
 
 /* Advanced statistics: compact 3×2 desktop grid with useful context. */
-.analytics-panel--advanced[data-active-view="deep"] {
+.analytics-panel--advanced {
   min-height: 0 !important;
 }
 
-.analytics-panel--advanced[data-active-view="deep"] .analytics-advanced__body,
-.analytics-panel--advanced[data-active-view="deep"] .analytics-advanced__pane--deep {
+.analytics-panel--advanced .analytics-advanced__body,
+.analytics-panel--advanced .analytics-advanced__pane--deep {
   min-height: 0 !important;
   height: auto !important;
   overflow: visible !important;
 }
 
-.analytics-panel--advanced[data-active-view="deep"] .deep-stats {
+.analytics-panel--advanced .deep-stats {
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   grid-auto-rows: 1fr !important;
   height: auto !important;
   gap: 10px !important;
 }
 
-.analytics-panel--advanced[data-active-view="deep"] .deep-stat {
+.analytics-panel--advanced .deep-stat {
   grid-template-rows: auto auto minmax(2.7em, auto) auto !important;
   align-content: start !important;
   min-height: 0 !important;
@@ -5698,20 +5693,20 @@ body[data-theme="light"] .goal-card:not(.goal-card--adder):not(.goal-card--empty
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .analytics-panel--advanced[data-active-view="deep"] .deep-stat:hover {
+  .analytics-panel--advanced .deep-stat:hover {
     border-color: color-mix(in srgb, var(--accent) 24%, var(--line)) !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.065), 0 12px 24px rgba(0, 0, 0, 0.11);
   }
 }
 
 @media (max-width: 1160px) {
-  .analytics-panel--advanced[data-active-view="deep"] .deep-stats {
+  .analytics-panel--advanced .deep-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
 
 @media (max-width: 640px) {
-  .analytics-panel--advanced[data-active-view="deep"] .deep-stats {
+  .analytics-panel--advanced .deep-stats {
     grid-template-columns: 1fr !important;
   }
 }
@@ -5779,4 +5774,45 @@ body[data-theme="light"] .goal-card:not(.goal-card--adder):not(.goal-card--empty
     min-block-size: 44px !important;
     flex: 0 0 44px !important;
   }
+}
+
+/* Advanced analytics: deep and forecast define one stable frame; recurring scrolls inside it. */
+.analytics-panel--advanced[data-active-view] .analytics-advanced__body {
+  position: relative !important;
+  display: grid !important;
+  min-height: 0 !important;
+  height: auto !important;
+  overflow: hidden !important;
+}
+
+.analytics-panel--advanced[data-active-view] .analytics-advanced__pane {
+  grid-area: 1 / 1 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.analytics-panel--advanced[data-active-view] .analytics-advanced__pane[hidden] {
+  display: grid !important;
+}
+
+.analytics-panel--advanced[data-active-view] .analytics-advanced__pane.is-active {
+  visibility: visible;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.analytics-panel--advanced[data-active-view] .analytics-advanced__pane--recurring {
+  position: absolute !important;
+  inset: 0 !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+.analytics-panel--advanced[data-active-view] .analytics-advanced__pane--recurring .recurring-list {
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow-y: auto !important;
 }

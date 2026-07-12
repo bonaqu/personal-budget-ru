@@ -4,6 +4,71 @@ const App = {
   storageErrorShownAt: 0,
   serviceWorkerRegistration: null,
   updateReloading: false,
+  pwaInstallPrompt: null,
+
+  isPwaStandalone() {
+    return window.matchMedia?.("(display-mode: standalone)").matches === true
+      || window.navigator.standalone === true;
+  },
+
+  updatePwaInstallState() {
+    const card = Utils.$("pwaInstallCard");
+    const button = Utils.$("pwaInstallBtn");
+    const status = Utils.$("pwaInstallStatus");
+    if (!card || !button || !status) return;
+    card.hidden = false;
+    if (this.isPwaStandalone()) {
+      button.hidden = true;
+      status.textContent = "Приложение установлено и открыто в отдельном окне.";
+      card.dataset.state = "installed";
+      return;
+    }
+    if (this.pwaInstallPrompt) {
+      button.hidden = false;
+      status.textContent = "Можно установить на это устройство и запускать отдельно от браузера.";
+      card.dataset.state = "available";
+      return;
+    }
+    button.hidden = true;
+    status.textContent = "Установка доступна через меню браузера: «Установить приложение» или «На экран Домой».";
+    card.dataset.state = "manual";
+  },
+
+  setupPwaInstall() {
+    window.addEventListener("beforeinstallprompt", (event) => {
+      event.preventDefault();
+      this.pwaInstallPrompt = event;
+      this.updatePwaInstallState();
+      Diagnostics.report("pwa:install-available", { standalone: false });
+    });
+    window.addEventListener("appinstalled", () => {
+      this.pwaInstallPrompt = null;
+      this.updatePwaInstallState();
+      UI.toast?.("Приложение установлено на устройство.", "success");
+      Diagnostics.report("pwa:installed", { standalone: this.isPwaStandalone() });
+    });
+    window.matchMedia?.("(display-mode: standalone)").addEventListener?.("change", () => this.updatePwaInstallState());
+    this.updatePwaInstallState();
+  },
+
+  async installPwa() {
+    const promptEvent = this.pwaInstallPrompt;
+    if (!promptEvent) {
+      this.updatePwaInstallState();
+      return;
+    }
+    this.pwaInstallPrompt = null;
+    this.updatePwaInstallState();
+    try {
+      await promptEvent.prompt();
+      const choice = await promptEvent.userChoice;
+      Diagnostics.report("pwa:install-choice", { outcome: choice?.outcome || "unknown" });
+      if (choice?.outcome !== "accepted") this.updatePwaInstallState();
+    } catch (error) {
+      Diagnostics.report("pwa:install-failed", { message: error?.message || String(error) }, "warning");
+      this.updatePwaInstallState();
+    }
+  },
 
   async registerServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol === "file:") return;
@@ -102,6 +167,7 @@ const App = {
 
   async init() {
     UI.init();
+    this.setupPwaInstall();
     this.bindStorageSafety();
     this.registerServiceWorker();
     await Auth.init();

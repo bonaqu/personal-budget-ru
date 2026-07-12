@@ -12,7 +12,9 @@
     "test:worker": "vitest run --config vitest.config.mjs",
     "test:ui": "playwright test",
     "test:offline": "playwright test --config playwright.offline.config.js",
-    "check:worker": "wrangler deploy --dry-run --config .codex-local/cloudflare-api/wrangler.jsonc --outdir output/worker-dry-run"
+    "check:worker": "wrangler deploy --dry-run --config .codex-local/cloudflare-api/wrangler.jsonc --outdir output/worker-dry-run",
+    "check:worker:ci": "wrangler deploy --dry-run --config api/wrangler.test.jsonc --outdir output/worker-ci-dry-run",
+    "smoke:production": "node tests/production-smoke.mjs"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.18.4",

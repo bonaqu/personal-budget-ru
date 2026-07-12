@@ -15,6 +15,7 @@ const MAX_ACTIVE_SESSIONS = 3;
 const DEFAULT_MAX_DATA_BYTES = 8_000_000;
 const MAX_AUTH_BODY_BYTES = 8_192;
 const DATA_CHUNK_CHARS = 200_000;
+const API_VERSION = 2;
 const encoder = new TextEncoder();
 
 export default {
@@ -33,19 +34,13 @@ export default {
     if (request.method === "HEAD" && (url.pathname === "/" || url.pathname === "/health")) {
       return new Response(null, { status: 200, headers: responseHeaders(meta, request, env) });
     }
-    if (request.method === "GET" && url.pathname === "/health") {
-      return jsonOk(meta, request, env, {
-        service: "personal-budget-worker",
-        storage: "cloudflare-d1",
-        apiVersion: 2,
-        timestamp: new Date().toISOString()
-      });
-    }
-    if (request.method === "GET" && url.pathname === "/") {
-      return textResponse(meta, request, env, "OK");
-    }
-
     try {
+      if (request.method === "GET" && url.pathname === "/health") {
+        return await healthCheck(request, env, meta);
+      }
+      if (request.method === "GET" && url.pathname === "/") {
+        return textResponse(meta, request, env, "OK");
+      }
       ensureEnv(env);
       const route = `${request.method} ${url.pathname}`;
       switch (route) {
@@ -98,8 +93,30 @@ function createRequestMeta(request) {
   const url = new URL(request.url);
   return {
     requestId: crypto.randomUUID(),
-    endpoint: `${request.method} ${url.pathname}`
+    endpoint: `${request.method} ${url.pathname}`,
+    startedAt: Date.now()
   };
+}
+
+async function healthCheck(request, env, meta) {
+  ensureEnv(env);
+  const result = await env.DB.prepare("SELECT 1 AS ready").first();
+  if (Number(result?.ready) !== 1) {
+    throw httpError(503, "Хранилище временно недоступно", "D1_NOT_READY");
+  }
+  const version = env.CF_VERSION_METADATA || {};
+  return jsonOk(meta, request, env, {
+    service: "personal-budget-worker",
+    status: "ok",
+    storage: { type: "cloudflare-d1", status: "ready" },
+    apiVersion: API_VERSION,
+    deployment: {
+      id: version.id || null,
+      tag: version.tag || null,
+      createdAt: version.timestamp || null
+    },
+    timestamp: new Date().toISOString()
+  });
 }
 
 function ensureEnv(env) {
@@ -127,6 +144,7 @@ function responseHeaders(meta, request, env, extra = {}) {
     "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS,HEAD",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Expose-Headers": "X-Request-Id, X-API-Version, Server-Timing",
     "Access-Control-Max-Age": "86400",
     "Cache-Control": "no-store",
     "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
@@ -135,6 +153,9 @@ function responseHeaders(meta, request, env, extra = {}) {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "X-Request-Id": meta.requestId,
+    "X-API-Version": String(API_VERSION),
+    "Server-Timing": `app;dur=${Math.max(0, Date.now() - Number(meta.startedAt || Date.now()))}`,
+    "Timing-Allow-Origin": allowOrigin,
     Vary: "Origin",
     ...extra
   };

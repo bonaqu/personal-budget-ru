@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Personal Budget Tracker">
+  <defs>
+    <linearGradient id="bg" x1="76" y1="48" x2="438" y2="472" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#405363"/>
+      <stop offset="0.52" stop-color="#233342"/>
+      <stop offset="1" stop-color="#111d27"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(166 126) rotate(46) scale(312)">
+      <stop stop-color="#6bbf66" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#6bbf66" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="20" stdDeviation="22" flood-color="#050a10" flood-opacity="0.34"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" fill="#0b0f14"/>
+  <rect x="26" y="26" width="460" height="460" rx="104" fill="url(#bg)" filter="url(#shadow)"/>
+  <rect x="27.5" y="27.5" width="457" height="457" rx="102.5" fill="url(#glow)" stroke="#ffffff" stroke-opacity="0.13" stroke-width="3"/>
+  <path d="M128 362H388" stroke="#eef3fb" stroke-opacity="0.18" stroke-width="12" stroke-linecap="round"/>
+  <rect x="128" y="266" width="58" height="96" rx="22" fill="#d7ba78"/>
+  <rect x="227" y="206" width="58" height="156" rx="22" fill="#6bbf66"/>
+  <rect x="326" y="142" width="58" height="220" rx="22" fill="#7eaeff"/>
+  <path d="M128 300C180 282 218 250 254 218C288 187 318 160 374 144" fill="none" stroke="#f4f8fc" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="376" cy="143" r="22" fill="#f4f8fc"/>
+  <circle cx="376" cy="143" r="10" fill="#7eaeff"/>
+</svg>

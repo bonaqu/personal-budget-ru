@@ -248,7 +248,7 @@ test("API console diagnostics include request id but never credentials", async (
   expect(output).not.toContain("console_probe");
 });
 
-test("goal cards stay compact, wrap after four and premium motion respects preferences", async ({ page }) => {
+test("goal cards stay compact, wrap after four and use restrained premium motion", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
   expect(await page.locator(".auth-shell-card").evaluate((element) => (
@@ -317,12 +317,16 @@ test("goal cards stay compact, wrap after four and premium motion respects prefe
   const goalCard = page.locator(".goal-card:not(.goal-card--adder)").first();
   const goalBox = await goalCard.boundingBox();
   await page.mouse.move(goalBox.x + goalBox.width * 0.2, goalBox.y + goalBox.height * 0.25);
-  await page.waitForTimeout(40);
-  const leftGlow = await goalCard.evaluate((element) => element.style.getPropertyValue("--goal-glow-x"));
   await page.mouse.move(goalBox.x + goalBox.width * 0.8, goalBox.y + goalBox.height * 0.65);
   await page.waitForTimeout(180);
-  const rightGlow = await goalCard.evaluate((element) => element.style.getPropertyValue("--goal-glow-x"));
-  expect(parseFloat(rightGlow)).toBeGreaterThan(parseFloat(leftGlow) + 40);
+  const glowState = await goalCard.evaluate((element) => ({
+    x: element.style.getPropertyValue("--goal-glow-x"),
+    y: element.style.getPropertyValue("--goal-glow-y"),
+    highlight: getComputedStyle(element, "::before").backgroundImage
+  }));
+  expect(glowState.x).toBe("");
+  expect(glowState.y).toBe("");
+  expect(glowState.highlight).not.toContain("radial-gradient");
   expect(await goalCard.evaluate((element) => getComputedStyle(element, "::after").opacity)).toBe("1");
 
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -376,13 +380,70 @@ test("advanced statistics use a compact 3 by 2 grid with useful context", async 
   await page.locator("#analyticsViewForecastBtn").click();
   await expect(page.locator("#analyticsViewForecastBtn")).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#analyticsPaneForecast")).toBeVisible();
+  const forecastHeight = Math.round((await page.locator(".analytics-panel--advanced").boundingBox()).height);
+  await page.locator("#analyticsViewRecurringBtn").click();
+  await expect(page.locator("#analyticsPaneRecurring")).toBeVisible();
+  const recurringHeight = Math.round((await page.locator(".analytics-panel--advanced").boundingBox()).height);
+  await page.locator("#recurringList").evaluate((root) => {
+    const source = root.querySelector(".recurring-card") || document.createElement("article");
+    source.classList.add("recurring-card");
+    while (root.children.length < 24) root.appendChild(source.cloneNode(true));
+  });
+  const longRecurring = await page.locator("#recurringList").evaluate((root) => ({
+    panelHeight: Math.round(root.closest(".analytics-panel--advanced").getBoundingClientRect().height),
+    clientHeight: root.clientHeight,
+    scrollHeight: root.scrollHeight,
+    overflowY: getComputedStyle(root).overflowY
+  }));
   await page.locator("#analyticsViewDeepBtn").click();
   await expect(page.locator("#analyticsViewDeepBtn")).toHaveAttribute("aria-selected", "true");
+  const deepHeight = Math.round((await page.locator(".analytics-panel--advanced").boundingBox()).height);
+  expect(new Set([deepHeight, forecastHeight, recurringHeight, longRecurring.panelHeight]).size).toBe(1);
+  expect(longRecurring.scrollHeight).toBeGreaterThan(longRecurring.clientHeight);
+  expect(longRecurring.overflowY).toBe("auto");
 
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.locator("#deepStats").evaluate((root) => (
     getComputedStyle(root).gridTemplateColumns.split(" ").length
   ))).toBe(1);
+  const mobileHeights = [];
+  for (const selector of ["#analyticsViewDeepBtn", "#analyticsViewForecastBtn", "#analyticsViewRecurringBtn"]) {
+    await page.locator(selector).click();
+    mobileHeights.push(Math.round((await page.locator(".analytics-panel--advanced").boundingBox()).height));
+  }
+  expect(new Set(mobileHeights).size).toBe(1);
+});
+
+test("PWA manifest and install prompt are available without losing browser fallback", async ({ page, context }) => {
+  await page.goto("/");
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute("href", "manifest.webmanifest");
+  const cdp = await context.newCDPSession(page);
+  const appManifest = await cdp.send("Page.getAppManifest");
+  expect(appManifest.errors).toEqual([]);
+  expect(appManifest.data).toContain('"display": "standalone"');
+  const manifest = await page.request.get("/manifest.webmanifest");
+  expect(manifest.status()).toBe(200);
+  const body = await manifest.json();
+  expect(body.display).toBe("standalone");
+  expect(body.icons.map((icon) => icon.sizes)).toEqual(expect.arrayContaining(["192x192", "512x512"]));
+
+  await page.evaluate(() => {
+    window.__pwaPromptCalls = 0;
+    const event = new Event("beforeinstallprompt");
+    Object.defineProperties(event, {
+      prompt: { value: async () => { window.__pwaPromptCalls += 1; } },
+      userChoice: { value: Promise.resolve({ outcome: "dismissed", platform: "web" }) }
+    });
+    window.dispatchEvent(event);
+  });
+  await page.locator("#startupLogin").fill("test1234");
+  await page.locator("#startupPassword").fill("test1234");
+  await page.locator("#startupLoginBtn").click();
+  await page.locator('.sidebar-nav [data-tab-target="settingsTab"]').click();
+  await expect(page.locator("#pwaInstallCard")).toHaveAttribute("data-state", "available");
+  await expect(page.locator("#pwaInstallBtn")).toBeVisible();
+  await page.locator("#pwaInstallBtn").click();
+  expect(await page.evaluate(() => window.__pwaPromptCalls)).toBe(1);
 });
 
 test("backup copy is concise and keeps the safety explanation", async ({ page }) => {

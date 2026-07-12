@@ -117,8 +117,6 @@ Object.assign(UI, {
       const card = Utils.createElement("article", "goal-card");
       card.style.setProperty("--goal-color", goal.color);
       card.classList.toggle("goal-card--complete", goal.progress >= 100);
-      this.bindPointerGlow(card);
-
       const head = Utils.createElement("div", "goal-card__head");
       const titleBox = Utils.createElement("div", "goal-card__title");
       const title = Utils.createElement("strong", "", goal.name);

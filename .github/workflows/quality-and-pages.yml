@@ -6,11 +6,6 @@ on:
   pull_request:
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
 concurrency:
   group: pages-${{ github.ref }}
   cancel-in-progress: true
@@ -18,21 +13,41 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run test:core
-      - run: npm run test:worker
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:ui
-      - run: npm run build
-      - run: npm run test:offline
-      - uses: actions/upload-pages-artifact@v3
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - name: Lint
+        run: npm run lint
+      - name: Test financial core
+        run: npm run test:core
+      - name: Test Worker in Cloudflare runtime
+        run: npm run test:worker
+      - name: Validate Worker bundle
+        run: npm run check:worker:ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Test UI
+        run: npm run test:ui
+      - name: Build production app
+        run: npm run build
+      - name: Test offline app shell
+        run: npm run test:offline
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         if: github.event_name != 'pull_request'
         with:
           path: dist
@@ -41,10 +56,40 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: quality
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5
+
+  production-smoke:
+    if: github.event_name != 'pull_request'
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout smoke test
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+      - name: Verify deployed frontend, PWA shell and Worker readiness
+        run: npm run smoke:production
+        env:
+          FRONTEND_URL: ${{ needs.deploy.outputs.page_url }}
+          API_URL: https://personal-budget-api.bonaqu.workers.dev

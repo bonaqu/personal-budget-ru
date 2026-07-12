@@ -1015,6 +1015,8 @@ Object.assign(UI, {
     if (toggleIcon && toggleIcon.textContent !== icon) {
       toggleIcon.textContent = icon;
     }
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    if (themeColor) themeColor.content = theme === "light" ? "#edf2f8" : "#0b0f14";
     this.appliedTheme = theme;
   },
 

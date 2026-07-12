@@ -5,10 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0b0f14">
   <meta name="description" content="Personal Budget Tracker для России: доходы, расходы, быстрые сценарии, цели и аналитика по месяцам.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Мой бюджет">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://personal-budget-api.bonaqu.workers.dev; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
   <meta name="referrer" content="no-referrer">
   <title>Personal Budget Tracker</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='3' y1='2' x2='21' y2='22' gradientUnits='userSpaceOnUse'%3E%3Cstop stop-color='%23465360'/%3E%3Cstop offset='0.56' stop-color='%23273342'/%3E%3Cstop offset='1' stop-color='%2317232d'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='1.5' y='1.5' width='21' height='21' rx='6.75' fill='url(%23bg)' stroke='rgba(255,255,255,0.16)'/%3E%3Crect x='5.05' y='11.25' width='2.6' height='4.75' rx='1.3' fill='%23d7ba78'/%3E%3Crect x='9.55' y='8.6' width='2.6' height='7.4' rx='1.3' fill='%236bbf66'/%3E%3Crect x='14.05' y='5.95' width='2.6' height='10.05' rx='1.3' fill='%237eaeff'/%3E%3Cpath d='M5.1 16.55H16.85' stroke='rgba(244,251,255,0.2)' stroke-width='1' stroke-linecap='round'/%3E%3Cpath d='M5.45 13.1C7.78 12.22 9.46 11.11 10.84 9.82C12.09 8.61 13.17 7.39 16.03 6.48' stroke='%23eef3fb' stroke-width='1.45' stroke-linecap='round'/%3E%3Ccircle cx='16.22' cy='6.48' r='1.4' fill='%23eef3fb'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml" href="icons/app-icon.svg">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <link rel="stylesheet" href="styles/00-foundation.css">
   <link rel="stylesheet" href="styles/10-foundation-responsive.css">
   <link rel="stylesheet" href="styles/20-analytics.css">
@@ -871,6 +877,13 @@
             <div class="settings-panel__status settings-panel__status--backup" id="backupStatus" role="status" aria-live="polite" aria-atomic="true" hidden></div>
             <div class="backup-note" id="backupNote">
               Подойдет для резервной копии, переноса между устройствами и восстановления, если что-то пойдет не так.
+            </div>
+            <div class="pwa-install" id="pwaInstallCard" data-state="manual" hidden>
+              <div class="pwa-install__copy">
+                <strong>Приложение на устройстве</strong>
+                <span id="pwaInstallStatus" role="status" aria-live="polite">Проверяем возможность установки.</span>
+              </div>
+              <button class="btn btn--secondary btn--compact" id="pwaInstallBtn" type="button" hidden>Установить приложение</button>
             </div>
           </article>
         </div>
