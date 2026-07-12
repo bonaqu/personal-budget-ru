@@ -2,13 +2,17 @@ const { test, expect } = require("@playwright/test");
 
 test("versioned app shell starts after the network disappears", async ({ page, context }) => {
   await page.goto("/?sw-test=1");
-  const cachedPaths = await page.evaluate(async () => {
-    await navigator.serviceWorker.ready;
-    if (!navigator.serviceWorker.controller) {
-      await new Promise((resolve) => {
-        navigator.serviceWorker.addEventListener("controllerchange", resolve, { once: true });
+  await expect.poll(async () => {
+    try {
+      return await page.evaluate(async () => {
+        await navigator.serviceWorker.ready;
+        return navigator.serviceWorker.controller?.state || "waiting";
       });
+    } catch {
+      return "navigating";
     }
+  }).toBe("activated");
+  const cachedPaths = await page.evaluate(async () => {
     const shellCache = (await caches.keys()).find((name) => name.startsWith("personal-budget-shell-"));
     if (!shellCache) throw new Error("Versioned app-shell cache was not created");
     const cache = await caches.open(shellCache);
