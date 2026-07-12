@@ -348,16 +348,21 @@ test("goal cards stay compact, wrap after four and use restrained premium motion
   expect(glowState.x).toBe("");
   expect(glowState.y).toBe("");
   expect(glowState.highlight).not.toContain("radial-gradient");
-  expect(await goalCard.evaluate((element) => getComputedStyle(element, "::after").opacity)).toBe("1");
+  expect(await goalCard.evaluate((element) => getComputedStyle(element, "::after").content)).toBe("none");
+
+  await page.locator("#themeToggleBtn").click();
+  expect(await goalCard.evaluate((element) => ({
+    theme: document.body.dataset.theme,
+    sheen: getComputedStyle(element, "::after").content,
+    border: getComputedStyle(element).borderColor
+  }))).toEqual(expect.objectContaining({ theme: "light", sheen: "none" }));
 
   await page.emulateMedia({ reducedMotion: "reduce" });
   const reducedMotion = await goalCard.evaluate((element) => ({
     transform: getComputedStyle(element).transform,
-    sheenDisplay: getComputedStyle(element, "::after").display,
     transition: getComputedStyle(element).transitionDuration
   }));
   expect(reducedMotion.transform).toBe("none");
-  expect(reducedMotion.sheenDisplay).toBe("none");
   expect(parseFloat(reducedMotion.transition)).toBeLessThanOrEqual(0.01);
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -371,6 +376,52 @@ test("goal cards stay compact, wrap after four and use restrained premium motion
   expect(mobile.maxHeight).toBe("none");
   expect(mobile.overflowY).toBe("visible");
   expect(mobile.overflow).toBeLessThanOrEqual(1);
+});
+
+test("months archive fills each card and focus operations stay readable", async ({ page }) => {
+  await page.setViewportSize({ width: 1480, height: 900 });
+  await loginDemo(page);
+  await page.locator('.sidebar-nav [data-tab-target="monthsTab"]').click();
+
+  const inspectArchive = () => page.locator("#monthsTable").evaluate((table) => ({
+    sidebarCollapsed: document.querySelector("#appShell").classList.contains("is-sidebar-collapsed"),
+    overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    rows: Array.from(table.querySelectorAll(".month-table__row")).slice(0, 4).map((row) => {
+      const rowBox = row.getBoundingClientRect();
+      return [".month-table__headline", ".month-table__totals", ".month-table__focus"].map((selector) => {
+        const box = row.querySelector(selector).getBoundingClientRect();
+        return Math.round(rowBox.right - box.right);
+      });
+    })
+  }));
+
+  const sidebarStates = new Set();
+  for (let index = 0; index < 2; index += 1) {
+    const archive = await inspectArchive();
+    sidebarStates.add(archive.sidebarCollapsed);
+    expect(archive.overflow).toBeLessThanOrEqual(1);
+    archive.rows.flat().forEach((rightGap) => expect(rightGap).toBeLessThanOrEqual(16));
+    await page.locator("#sidebarToggleBtn").click();
+  }
+  expect(sidebarStates.size).toBe(2);
+
+  await page.locator("#themeToggleBtn").click();
+  const lightArchive = await inspectArchive();
+  lightArchive.rows.flat().forEach((rightGap) => expect(rightGap).toBeLessThanOrEqual(16));
+
+  const focus = await page.locator("#monthDetail").evaluate((root) => ({
+    operationRows: Array.from(root.querySelectorAll(".month-detail__metric--operation")).map((row) => ({
+      columns: getComputedStyle(row).gridTemplateColumns.split(" ").length,
+      textAlign: getComputedStyle(row.querySelector("strong")).textAlign
+    })),
+    heroCards: root.querySelectorAll(".month-detail__hero-card").length
+  }));
+  expect(focus.heroCards).toBe(6);
+  expect(focus.operationRows).toHaveLength(2);
+  focus.operationRows.forEach((row) => {
+    expect(row.columns).toBe(1);
+    expect(row.textAlign).toBe("left");
+  });
 });
 
 test("advanced statistics use a compact 3 by 2 grid with useful context", async ({ page }) => {
