@@ -3994,18 +3994,60 @@ body.is-window-resizing .deep-stat {
 }
 
 .auth-shell-card {
-  border: 1px solid color-mix(in srgb, var(--surface-border-soft) 84%, rgba(255, 255, 255, 0.08)) !important;
+  border: 1px solid color-mix(in srgb, var(--surface-border-soft) 78%, rgb(var(--info-rgb) / 0.18)) !important;
   box-shadow:
     0 30px 72px rgba(0, 0, 0, 0.42),
     0 14px 28px rgba(0, 0, 0, 0.16),
+    0 0 64px rgb(var(--accent-rgb) / 0.045),
     inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
 }
 
-.auth-shell-card__intro,
+.auth-shell-card__intro {
+  background:
+    radial-gradient(circle at 8% 4%, rgb(var(--accent-rgb) / 0.13), transparent 38%),
+    radial-gradient(circle at 94% 100%, rgb(var(--info-rgb) / 0.09), transparent 42%),
+    linear-gradient(155deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.008) 58%),
+    color-mix(in srgb, var(--surface-card) 94%, rgba(255, 255, 255, 0.012)) !important;
+}
+
 .auth-shell-card__form {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.012)),
-    color-mix(in srgb, var(--surface-card) 94%, rgba(255, 255, 255, 0.012)) !important;
+    radial-gradient(circle at 100% 0%, rgb(var(--info-rgb) / 0.075), transparent 40%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.008)),
+    color-mix(in srgb, var(--surface-card) 96%, rgba(255, 255, 255, 0.008)) !important;
+}
+
+.auth-shell-card__form::before {
+  content: "";
+  position: absolute;
+  inset-block: 11%;
+  inset-inline-start: -1px;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgb(var(--info-rgb) / 0.4) 28%,
+    rgb(var(--accent-rgb) / 0.34) 72%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+.auth-card__head--startup {
+  position: relative;
+  padding-bottom: 15px;
+}
+
+.auth-card__head--startup::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  bottom: 0;
+  width: 42px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--info));
+  box-shadow: 0 0 16px rgb(var(--accent-rgb) / 0.22);
 }
 
 .brand-mark--hero {
@@ -4046,13 +4088,57 @@ body.is-window-resizing .deep-stat {
 }
 
 .auth-field__control:focus-within {
-  border-color: color-mix(in srgb, var(--surface-border-soft) 72%, rgba(255, 255, 255, 0.18)) !important;
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--surface-border-soft)) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 0 0 1px rgba(255, 255, 255, 0.05),
-    0 0 0 4px rgba(255, 255, 255, 0.045),
-    0 12px 24px rgba(3, 6, 14, 0.09) !important;
+    0 0 0 1px rgb(var(--accent-rgb) / 0.08),
+    0 0 0 4px rgb(var(--accent-rgb) / 0.085),
+    0 14px 28px rgba(3, 6, 14, 0.13) !important;
   transform: none !important;
+}
+
+.auth-field__control:focus-within .auth-field__icon {
+  color: color-mix(in srgb, var(--accent) 74%, white 12%);
+}
+
+.auth-form--startup .auth-field__hint {
+  color: color-mix(in srgb, var(--text-dim) 86%, var(--text-soft));
+}
+
+.auth-form--startup .auth-card__actions .btn--primary {
+  border-color: color-mix(in srgb, var(--accent) 72%, white 8%) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 88%, white 12%), var(--accent)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 12px 24px rgb(var(--accent-rgb) / 0.16) !important;
+}
+
+.auth-form--startup .auth-card__actions .btn--secondary {
+  border-color: color-mix(in srgb, var(--info) 46%, var(--surface-border-soft)) !important;
+  background:
+    linear-gradient(180deg, rgb(var(--info-rgb) / 0.11), rgb(var(--info-rgb) / 0.055)),
+    color-mix(in srgb, var(--surface-card-soft) 94%, transparent) !important;
+}
+
+.auth-form--startup .auth-card__actions .btn--ghost {
+  border-color: color-mix(in srgb, var(--surface-border-soft) 84%, rgba(255, 255, 255, 0.08)) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012)) !important;
+}
+
+@media (max-width: 1100px) {
+  .auth-shell-card__form::before {
+    inset-block: -1px auto;
+    inset-inline: 8%;
+    width: auto;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgb(var(--accent-rgb) / 0.34) 34%,
+      rgb(var(--info-rgb) / 0.4) 68%,
+      transparent
+    );
+  }
 }
 
 .auth-form.stack-form input:not([type="color"]):not([type="checkbox"]):not([type="radio"]),
