@@ -1,12 +1,12 @@
 "use strict";
 
-const CACHE_NAME = "personal-budget-shell-v10-20260712-auth-polish";
+const CACHE_NAME = "personal-budget-shell-v11-20260712-transparent-favicon";
 const BUILD_ASSETS = ["__VITE_BUILD_ASSETS__"];
 const APP_SHELL = BUILD_ASSETS.length === 1 && BUILD_ASSETS[0] === "__VITE_BUILD_ASSETS__" ? [
   "./",
   "./index.html",
   "./manifest.webmanifest",
-  "./icons/app-icon.svg",
+  "./icons/app-icon.svg?v=2",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",

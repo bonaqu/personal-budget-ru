@@ -23,6 +23,27 @@ test("auth and recovery dialogs have usable semantics", async ({ page }) => {
   await expect(dialog).toBeHidden();
 });
 
+test("favicon keeps a transparent outer canvas", async ({ page }) => {
+  await page.goto("/");
+  const favicon = page.locator('link[rel="icon"]');
+  await expect(favicon).toHaveAttribute("href", "icons/app-icon.svg?v=2");
+
+  const cornerAlpha = await page.evaluate(async () => {
+    const href = document.querySelector('link[rel="icon"]')?.href;
+    const image = new Image();
+    image.src = href;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.drawImage(image, 0, 0, 64, 64);
+    return context.getImageData(0, 0, 1, 1).data[3];
+  });
+
+  expect(cornerAlpha).toBe(0);
+});
+
 test("demo clearly resets and layouts do not overflow", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));

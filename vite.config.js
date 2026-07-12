@@ -62,7 +62,7 @@ function classicBundlePlugin() {
         "./",
         "./index.html",
         "./manifest.webmanifest",
-        "./icons/app-icon.svg",
+        "./icons/app-icon.svg?v=2",
         "./icons/icon-192.png",
         "./icons/icon-512.png",
         "./icons/icon-maskable-512.png",
