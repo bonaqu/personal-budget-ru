@@ -111,6 +111,8 @@
 }
 
 .month-table__row--compact {
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch;
   gap: 10px !important;
   padding: 12px !important;
 }
@@ -313,6 +315,17 @@
   line-height: 1.35;
   text-align: right;
   overflow-wrap: anywhere;
+}
+
+.month-detail__metric--operation {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 4px !important;
+  padding-top: 8px;
+  border-top: 1px solid var(--surface-border-soft);
+}
+
+.month-detail__metric--operation strong {
+  text-align: left;
 }
 
 .month-detail__categories {

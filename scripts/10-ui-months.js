@@ -412,8 +412,11 @@ Object.assign(UI, {
       ["Крупнейший доход", stats.topIncome ? `${stats.topIncome.description} • ${Utils.formatMoney(stats.topIncome.amount)}` : "Пока без доходов"],
       ["Крупнейший расход", stats.topExpense ? `${stats.topExpense.description} • ${Utils.formatMoney(stats.topExpense.amount)}` : "Пока без расходов"]
     ].forEach(([label, value]) => {
-      const row = Utils.createElement("div", "month-detail__metric month-detail__metric--row");
       const isOperationLabel = label === "Крупнейший доход" || label === "Крупнейший расход";
+      const row = Utils.createElement(
+        "div",
+        `month-detail__metric month-detail__metric--row${isOperationLabel ? " month-detail__metric--operation" : ""}`
+      );
       if (isOperationLabel) {
         row.title = value;
       }

@@ -5606,19 +5606,6 @@ body[data-theme="light"] .account-menu__status.is-error {
   transition: opacity 0.18s ease;
 }
 
-.goal-card:not(.goal-card--adder):not(.goal-card--empty)::after {
-  content: "";
-  position: absolute;
-  inset-block: -36%;
-  inset-inline-start: -58%;
-  inline-size: 44%;
-  z-index: 0;
-  pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transform: skewX(-18deg);
-  opacity: 0;
-}
-
 .goal-card:not(.goal-card--adder):not(.goal-card--empty) > * {
   position: relative;
   z-index: 1;
@@ -5655,10 +5642,6 @@ body[data-theme="light"] .account-menu__status.is-error {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .goal-card:not(.goal-card--adder):not(.goal-card--empty)::after {
-    transition: opacity 0.16s ease;
-  }
-
   .goal-card:not(.goal-card--adder):not(.goal-card--empty):is(:hover, :focus-within) {
     transform: translateY(-2px) !important;
     border-color: color-mix(in srgb, var(--goal-color, var(--info)) 42%, var(--line)) !important;
@@ -5671,12 +5654,6 @@ body[data-theme="light"] .account-menu__status.is-error {
 
   .goal-card:not(.goal-card--adder):not(.goal-card--empty):is(:hover, :focus-within)::before {
     opacity: 1;
-  }
-
-  .goal-card:not(.goal-card--adder):not(.goal-card--empty):is(:hover, :focus-within)::after {
-    inset-inline-start: 118%;
-    opacity: 1;
-    transition: inset-inline-start 0.62s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.12s ease;
   }
 
   .goal-card:not(.goal-card--adder):not(.goal-card--empty):is(:hover, :focus-within) .goal-progress__fill {
@@ -5799,7 +5776,6 @@ body[data-theme="light"] .goal-card:not(.goal-card--adder):not(.goal-card--empty
 
 @media (prefers-reduced-motion: reduce) {
   .goal-card,
-  .goal-card::after,
   .goal-card::before {
     transition: none !important;
     animation: none !important;
@@ -5808,10 +5784,6 @@ body[data-theme="light"] .goal-card:not(.goal-card--adder):not(.goal-card--empty
   .goal-card:not(.goal-card--adder):not(.goal-card--empty):is(:hover, :focus-within),
   .goal-card--adder:is(:hover, :focus-visible) {
     transform: none !important;
-  }
-
-  .goal-card:not(.goal-card--adder):not(.goal-card--empty)::after {
-    display: none;
   }
 }
 @media (max-width: 768px), (pointer: coarse) {
