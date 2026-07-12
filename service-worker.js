@@ -35,6 +35,11 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("message", (event) => {
+  const sourceUrl = event.source?.url ? new URL(event.source.url) : null;
+  const scope = new URL(self.registration.scope);
+  if (event.origin !== self.location.origin || !sourceUrl || sourceUrl.origin !== scope.origin || !sourceUrl.pathname.startsWith(scope.pathname)) {
+    return;
+  }
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
 

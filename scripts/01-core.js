@@ -315,10 +315,21 @@ const Utils = {
   },
 
   uid(prefix = "id") {
-    const suffix = typeof crypto?.randomUUID === "function"
-      ? crypto.randomUUID()
-      : `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
+    let suffix;
+    if (typeof crypto?.randomUUID === "function") {
+      suffix = crypto.randomUUID();
+    } else {
+      const bytes = new Uint32Array(4);
+      crypto.getRandomValues(bytes);
+      suffix = Array.from(bytes, (value) => value.toString(36)).join("_");
+    }
     return `${prefix}_${suffix}`;
+  },
+
+  randomUnit() {
+    const value = new Uint32Array(1);
+    crypto.getRandomValues(value);
+    return value[0] / 0x100000000;
   },
 
   normalizeId(value, prefix = "id") {
@@ -625,12 +636,20 @@ function buildLocalTestData() {
       exp_debt: 7000
     })[category.id] || category.limit
   }));
-  const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+  const randomInt = (min, max) => Math.floor(Utils.randomUnit() * (max - min + 1)) + min;
   const randomAmount = (min, max, step = 10) => {
     const steps = Math.max(1, Math.round((max - min) / step));
     return Utils.roundMoney(min + randomInt(0, steps) * step);
   };
   const pick = (list) => list[randomInt(0, Math.max(0, list.length - 1))];
+  const shuffle = (list) => {
+    const copy = list.slice();
+    for (let index = copy.length - 1; index > 0; index -= 1) {
+      const swapIndex = randomInt(0, index);
+      [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+    }
+    return copy;
+  };
   const monthStart = (offset = 0) => new Date(today.getFullYear(), today.getMonth() + offset, 1);
   const monthKeyFor = (offset = 0) => Utils.monthKey(monthStart(offset));
   const daysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -781,24 +800,22 @@ function buildLocalTestData() {
     const freelanceDay = randomInt(Math.min(8, monthDays), Math.min(17, monthDays));
     const reserveDay = randomInt(Math.min(18, monthDays), Math.min(26, monthDays));
     pushTx("salary", "income", "standard", "inc_salary", salaryAmount, pick(salaryDescriptions), salaryDay);
-    pushTx("freelance", "income", "standard", Math.random() > 0.55 ? "inc_bonus" : "inc_freelance", randomAmount(6200, 16800, 50), pick(freelanceDescriptions), freelanceDay);
-    if (Math.random() > 0.25) {
+    pushTx("freelance", "income", "standard", Utils.randomUnit() > 0.55 ? "inc_bonus" : "inc_freelance", randomAmount(6200, 16800, 50), pick(freelanceDescriptions), freelanceDay);
+    if (Utils.randomUnit() > 0.25) {
       pushTx("reserve", "income", "standard", "inc_other", randomAmount(2800, 9500, 50), pick(bonusDescriptions), reserveDay);
     }
 
     pushTx("recurring_main", "expense", "recurring", "exp_subscription", randomAmount(1290, 1890, 10), pick(recurringDescriptions), randomInt(2, Math.min(4, monthDays)));
-    if (Math.random() > 0.38) {
+    if (Utils.randomUnit() > 0.38) {
       pushTx("recurring_extra", "expense", "recurring", "exp_services", randomAmount(290, 990, 10), pick(serviceDescriptions), randomInt(3, Math.min(6, monthDays)));
     }
     pushTx("debt_main", "expense", "debt", "exp_debt", randomAmount(3800, 6200, 10), pick(debtDescriptions), randomInt(3, Math.min(7, monthDays)));
-    if (Math.random() > 0.45) {
+    if (Utils.randomUnit() > 0.45) {
       pushTx("debt_extra", "expense", "debt", "exp_debt", randomAmount(1200, 3400, 10), pick(debtDescriptions), randomInt(Math.min(11, monthDays), Math.min(20, monthDays)));
     }
 
     const standardDays = [4, 5, 9, 12, 15, 18, 22, 25, 27].filter((day) => day <= monthDays);
-    const selectedExpenses = expensePool.slice()
-      .sort(() => Math.random() - 0.5)
-      .slice(0, randomInt(6, 8));
+    const selectedExpenses = shuffle(expensePool).slice(0, randomInt(6, 8));
     selectedExpenses.forEach((item, itemIndex) => {
       const day = standardDays[itemIndex % standardDays.length] || randomInt(4, monthDays);
       pushTx(
@@ -1085,7 +1102,7 @@ function normalizeWishlistItem(raw, fallbackPosition = null) {
     amount,
     position: Number.isFinite(Number(raw.position))
       ? Number(raw.position)
-      : (Number.isFinite(Number(fallbackPosition)) ? Number(fallbackPosition) : Date.now() + Math.random()),
+      : (Number.isFinite(Number(fallbackPosition)) ? Number(fallbackPosition) : Date.now() + Utils.randomUnit()),
     createdAt: raw.createdAt || LEGACY_TIMESTAMP,
     updatedAt: raw.updatedAt || raw.createdAt || LEGACY_TIMESTAMP
   };
@@ -1111,7 +1128,7 @@ function normalizeGoal(raw, fallbackPosition = null) {
     color: /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(raw.color ?? "")) ? raw.color : "#58a6ff",
     position: Number.isFinite(Number(raw.position))
       ? Number(raw.position)
-      : (Number.isFinite(Number(fallbackPosition)) ? Number(fallbackPosition) : Date.now() + Math.random()),
+      : (Number.isFinite(Number(fallbackPosition)) ? Number(fallbackPosition) : Date.now() + Utils.randomUnit()),
     createdAt: raw.createdAt || LEGACY_TIMESTAMP,
     updatedAt: raw.updatedAt || raw.createdAt || LEGACY_TIMESTAMP
   };
@@ -1208,7 +1225,7 @@ function normalizeTransaction(raw, categories) {
     categoryId,
     description: String(raw.description ?? raw.desc ?? "").trim().slice(0, 200),
     date: Utils.isISODate(raw.date) ? raw.date : Utils.todayISO(),
-    position: Number.isFinite(Number(raw.position)) ? Number(raw.position) : new Date(raw.createdAt || Utils.nowISO()).getTime() + Math.random(),
+    position: Number.isFinite(Number(raw.position)) ? Number(raw.position) : new Date(raw.createdAt || Utils.nowISO()).getTime() + Utils.randomUnit(),
     createdAt: raw.createdAt || LEGACY_TIMESTAMP,
     updatedAt: raw.updatedAt || raw.createdAt || LEGACY_TIMESTAMP
   };

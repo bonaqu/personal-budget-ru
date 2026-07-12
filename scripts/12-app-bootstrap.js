@@ -2269,8 +2269,11 @@ const Diagnostics = {
     if (Array.isArray(value)) return value.slice(0, 20).map((item) => this.sanitize(item, depth + 1));
     if (!value || typeof value !== "object") return value;
     return Object.fromEntries(Object.entries(value).map(([key, item]) => {
-      if (/password|token|secret|recovery|cookie|authorization|data$/i.test(key)) return [key, "[hidden]"];
-      if (/login/i.test(key)) return [key, item ? "[account]" : null];
+      const normalizedKey = key.toLowerCase();
+      if (normalizedKey === "data" || ["password", "token", "secret", "recovery", "cookie", "authorization"].some((part) => normalizedKey.includes(part))) {
+        return [key, "[hidden]"];
+      }
+      if (normalizedKey.includes("login")) return [key, item ? "[account]" : null];
       return [key, this.sanitize(item, depth + 1)];
     }));
   },
