@@ -128,10 +128,10 @@ body[data-theme="light"] {
   --text: #0e1826;
   --text-main: var(--text);
   --text-soft: #4f6479;
-  --text-dim: #718499;
+  --text-dim: #60758a;
   --text-rgb: 14 24 38;
   --text-soft-rgb: 79 100 121;
-  --text-dim-rgb: 113 132 153;
+  --text-dim-rgb: 96 117 138;
   --line-rgb: 13 23 38;
   --surface-border-rgb: 13 23 38;
   --surface-border: rgb(var(--surface-border-rgb) / 0.14);
@@ -157,8 +157,8 @@ body[data-theme="light"] {
   --focus-border: rgb(var(--accent-rgb) / 0.82);
   --focus-ring: rgb(var(--accent-rgb) / 0.1);
   --surface-glass-edge: rgba(13, 23, 38, 0.1);
-  --surface-glass-highlight: rgba(255, 255, 255, 0.72);
-  --surface-glass-highlight-soft: rgba(255, 255, 255, 0.42);
+  --surface-glass-highlight: rgba(255, 255, 255, 0.46);
+  --surface-glass-highlight-soft: rgba(255, 255, 255, 0.28);
   --surface-glass-accent: rgb(var(--accent-rgb) / 0.06);
   --scrollbar-track: color-mix(in srgb, var(--surface-card-soft) 82%, rgba(13, 23, 38, 0.03));
   --scrollbar-thumb: color-mix(in srgb, var(--surface-border-soft) 76%, rgba(13, 23, 38, 0.12));

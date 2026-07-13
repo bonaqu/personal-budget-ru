@@ -81,6 +81,75 @@ test("demo clearly resets and layouts do not overflow", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("light theme keeps text readable and avoids overbright compositing", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await loginDemo(page);
+
+  if (await page.evaluate(() => document.body.dataset.theme !== "light")) {
+    await page.locator("#themeToggleBtn").click();
+  }
+  await expect(page.locator("body")).toHaveAttribute("data-theme", "light");
+  await page.waitForTimeout(300);
+
+  const themeState = await page.evaluate(() => {
+    const parseRgb = (value) => value.match(/\d+(?:\.\d+)?/g).slice(0, 3).map(Number);
+    const luminance = (rgb) => rgb
+      .map((channel) => channel / 255)
+      .map((channel) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
+      .reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+    const contrast = (left, right) => {
+      const values = [luminance(parseRgb(left)), luminance(parseRgb(right))].sort((a, b) => b - a);
+      return (values[0] + 0.05) / (values[1] + 0.05);
+    };
+    const bodyStyle = getComputedStyle(document.body);
+    const accountStyle = getComputedStyle(document.querySelector("#accountBtn"));
+    const disabledStyle = getComputedStyle(document.querySelector("#undoBtn"));
+    const visibleSurfaces = Array.from(document.querySelectorAll(".glass-card, .panel"))
+      .filter((element) => element.checkVisibility?.({ checkOpacity: true, checkVisibilityCSS: true }) ?? true)
+      .map((element) => getComputedStyle(element));
+    return {
+      accountColor: accountStyle.color,
+      bodyText: bodyStyle.getPropertyValue("--text-main").trim(),
+      disabledOpacity: Number(disabledStyle.opacity),
+      dimContrast: contrast(bodyStyle.getPropertyValue("--text-dim").trim(), "rgb(255, 255, 255)"),
+      blurredSurfaces: visibleSurfaces.filter((style) => style.backdropFilter !== "none").length,
+      radialSurfaces: visibleSurfaces.filter((style) => style.backgroundImage.includes("radial-gradient")).length
+    };
+  });
+
+  expect(themeState.accountColor).toBe("rgb(14, 24, 38)");
+  expect(themeState.bodyText).toBe("#0e1826");
+  expect(themeState.disabledOpacity).toBeGreaterThanOrEqual(0.88);
+  expect(themeState.dimContrast).toBeGreaterThanOrEqual(4.5);
+  expect(themeState.blurredSurfaces).toBe(0);
+  expect(themeState.radialSurfaces).toBe(0);
+
+  await page.locator("#accountBtn").hover();
+  expect(await page.locator("#accountBtn").evaluate((element) => getComputedStyle(element).color)).toBe("rgb(14, 24, 38)");
+  await page.locator("#themeToggleBtn").focus();
+  const focusState = await page.locator("#themeToggleBtn").evaluate((element) => ({
+    active: document.activeElement === element,
+    outline: getComputedStyle(element).outlineStyle,
+    shadow: getComputedStyle(element).boxShadow
+  }));
+  expect(focusState.active).toBe(true);
+  expect(focusState.outline !== "none" || focusState.shadow !== "none").toBe(true);
+
+  for (const target of ["analyticsTab", "monthsTab", "settingsTab", "overviewTab"]) {
+    await page.locator(`.sidebar-nav [data-tab-target="${target}"]`).click();
+    await expect(page.locator(`#${target}`)).toHaveClass(/is-active/);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  }
+
+  for (const expectedTheme of ["dark", "light", "dark", "light"]) {
+    await page.locator("#themeToggleBtn").click();
+    await expect(page.locator("body")).toHaveAttribute("data-theme", expectedTheme);
+  }
+  expect(errors).toEqual([]);
+});
+
 test("stored user IDs cannot become HTML attributes or script", async ({ page }) => {
   await loginDemo(page);
   const result = await page.evaluate(() => {
