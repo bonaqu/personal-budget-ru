@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "personal-budget-shell-v13-20260713-light-theme-contrast";
+const CACHE_NAME = "personal-budget-shell-v14-20260713-sidebar-tooltips";
 const BUILD_ASSETS = ["__VITE_BUILD_ASSETS__"];
 const APP_SHELL = BUILD_ASSETS.length === 1 && BUILD_ASSETS[0] === "__VITE_BUILD_ASSETS__" ? [
   "./",

@@ -1004,9 +1004,19 @@ Object.assign(UI, {
 
   applyTheme() {
     const theme = Store.data.profile.theme === "light" ? "light" : "dark";
+    const themeLabel = theme === "light" ? "Светлая тема" : "Тёмная тема";
+    const themeAction = theme === "light" ? "Включить тёмную тему" : "Включить светлую тему";
+    const toggle = Utils.$("themeToggleBtn");
     const toggleIcon = Utils.$("themeToggleIcon");
+    const toggleLabel = Utils.$("themeToggleLabel");
     const icon = theme === "dark" ? "◐" : "◑";
-    if (this.appliedTheme === theme && document.body.dataset.theme === theme && (!toggleIcon || toggleIcon.textContent === icon)) {
+    if (
+      this.appliedTheme === theme
+      && document.body.dataset.theme === theme
+      && (!toggleIcon || toggleIcon.textContent === icon)
+      && (!toggleLabel || toggleLabel.textContent === themeLabel)
+      && (!toggle || toggle.getAttribute("aria-label") === themeAction)
+    ) {
       return;
     }
     if (document.body.dataset.theme !== theme) {
@@ -1014,6 +1024,14 @@ Object.assign(UI, {
     }
     if (toggleIcon && toggleIcon.textContent !== icon) {
       toggleIcon.textContent = icon;
+    }
+    if (toggleLabel && toggleLabel.textContent !== themeLabel) {
+      toggleLabel.textContent = themeLabel;
+    }
+    if (toggle) {
+      toggle.setAttribute("aria-label", themeAction);
+      toggle.setAttribute("data-sidebar-tooltip", themeLabel);
+      toggle.title = themeAction;
     }
     const themeColor = document.querySelector('meta[name="theme-color"]');
     if (themeColor) themeColor.content = theme === "light" ? "#edf2f8" : "#0b0f14";
@@ -1033,6 +1051,7 @@ Object.assign(UI, {
       toggle.setAttribute("aria-expanded", String(!collapsed));
       const nextLabel = collapsed ? "Открыть боковую панель" : "Свернуть боковую панель";
       toggle.setAttribute("aria-label", nextLabel);
+      toggle.setAttribute("data-sidebar-tooltip", nextLabel);
       toggle.title = nextLabel;
     }
     Storage.writeText(CONFIG.SIDEBAR_KEY, collapsed ? "1" : "0");

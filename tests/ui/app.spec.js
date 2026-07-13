@@ -150,6 +150,71 @@ test("light theme keeps text readable and avoids overbright compositing", async 
   expect(errors).toEqual([]);
 });
 
+test("sidebar uses Russian history labels, explicit theme state and accessible collapsed tooltips", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await loginDemo(page);
+
+  await expect(page.locator("#undoBtn .sidebar__utility-label")).toHaveText("Отменить");
+  await expect(page.locator("#redoBtn .sidebar__utility-label")).toHaveText("Вернуть");
+  await expect(page.locator('.sidebar-nav [data-tab-target="overviewTab"]')).toHaveAttribute("aria-label", "Бюджет");
+  await expect(page.locator('.sidebar-nav [data-tab-target="analyticsTab"]')).toHaveAttribute("aria-label", "Аналитика");
+  await expect(page.locator('.sidebar-nav [data-tab-target="monthsTab"]')).toHaveAttribute("aria-label", "Месяцы");
+  await expect(page.locator('.sidebar-nav [data-tab-target="settingsTab"]')).toHaveAttribute("aria-label", "Настройки");
+
+  const assertThemeControl = async (theme) => {
+    const isLight = theme === "light";
+    await expect(page.locator("body")).toHaveAttribute("data-theme", theme);
+    await expect(page.locator("#themeToggleLabel")).toHaveText(isLight ? "Светлая тема" : "Тёмная тема");
+    await expect(page.locator("#themeToggleBtn")).toHaveAttribute(
+      "aria-label",
+      isLight ? "Включить тёмную тему" : "Включить светлую тему"
+    );
+    await expect(page.locator("#themeToggleBtn")).toHaveAttribute(
+      "data-sidebar-tooltip",
+      isLight ? "Светлая тема" : "Тёмная тема"
+    );
+  };
+
+  const initialTheme = await page.evaluate(() => document.body.dataset.theme);
+  await assertThemeControl(initialTheme);
+  await page.locator("#themeToggleBtn").click();
+  await assertThemeControl(initialTheme === "light" ? "dark" : "light");
+
+  const shell = page.locator("#appShell");
+  if (!(await shell.evaluate((element) => element.classList.contains("is-sidebar-collapsed")))) {
+    await page.locator("#sidebarToggleBtn").click();
+  }
+  await expect(shell).toHaveClass(/is-sidebar-collapsed/);
+  await expect(page.locator("#sidebarToggleBtn")).toHaveAttribute("data-sidebar-tooltip", "Открыть боковую панель");
+
+  const monthsButton = page.locator('.sidebar-nav [data-tab-target="monthsTab"]');
+  await monthsButton.hover();
+  await page.waitForTimeout(180);
+  const hoverTooltip = await monthsButton.evaluate((element) => {
+    const style = getComputedStyle(element, "::before");
+    return { content: style.content, opacity: style.opacity, visibility: style.visibility };
+  });
+  expect(hoverTooltip).toEqual({ content: '"Месяцы"', opacity: "1", visibility: "visible" });
+
+  await page.mouse.move(900, 700);
+  const analyticsButton = page.locator('.sidebar-nav [data-tab-target="analyticsTab"]');
+  await analyticsButton.focus();
+  await analyticsButton.press("Tab");
+  await page.waitForTimeout(180);
+  const focusTooltip = await monthsButton.evaluate((element) => {
+    const style = getComputedStyle(element, "::before");
+    return { focused: document.activeElement === element, opacity: style.opacity, visibility: style.visibility };
+  });
+  expect(focusTooltip).toEqual({ focused: true, opacity: "1", visibility: "visible" });
+
+  await page.locator("#sidebarToggleBtn").click();
+  await expect(shell).not.toHaveClass(/is-sidebar-collapsed/);
+  expect(await monthsButton.evaluate((element) => getComputedStyle(element, "::before").content)).toBe("none");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await monthsButton.evaluate((element) => getComputedStyle(element, "::before").content)).toBe("none");
+});
+
 test("stored user IDs cannot become HTML attributes or script", async ({ page }) => {
   await loginDemo(page);
   const result = await page.evaluate(() => {

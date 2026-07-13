@@ -115,7 +115,7 @@
       <div class="sidebar__inner">
         <section class="sidebar__card sidebar__card--brand">
           <div class="sidebar__row">
-            <button class="sidebar__brand-toggle" id="sidebarToggleBtn" type="button" aria-label="Свернуть боковую панель" aria-expanded="false" title="Свернуть боковую панель">
+            <button class="sidebar__brand-toggle" id="sidebarToggleBtn" type="button" aria-label="Свернуть боковую панель" aria-expanded="false" title="Свернуть боковую панель" data-sidebar-tooltip="Свернуть боковую панель">
               <span class="brand-mark" aria-hidden="true">
                 <svg class="brand-mark__glyph" viewBox="0 0 56 56" fill="none">
                   <rect class="brand-mark__glyph-bar brand-mark__glyph-bar--low" x="11" y="28.5" width="6.8" height="12.5" rx="3.4"></rect>
@@ -138,23 +138,23 @@
 
         <section class="sidebar__card sidebar__card--history">
           <div class="sidebar-history">
-            <button class="icon-btn sidebar__utility-btn sidebar__utility-btn--history" id="undoBtn" type="button" aria-label="Отменить последнее действие">
+            <button class="icon-btn sidebar__utility-btn sidebar__utility-btn--history" id="undoBtn" type="button" aria-label="Отменить последнее действие" data-sidebar-tooltip="Отменить">
               <span class="sidebar-nav__icon sidebar-nav__icon--utility" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none">
                   <path d="M9 7L4.5 11.5L9 16"></path>
                   <path d="M5.5 11.5H14C17.0376 11.5 19.5 13.9624 19.5 17"></path>
                 </svg>
               </span>
-              <span class="sidebar__utility-label">Undo</span>
+              <span class="sidebar__utility-label">Отменить</span>
             </button>
-            <button class="icon-btn sidebar__utility-btn sidebar__utility-btn--history" id="redoBtn" type="button" aria-label="Вернуть отмененное действие">
+            <button class="icon-btn sidebar__utility-btn sidebar__utility-btn--history" id="redoBtn" type="button" aria-label="Вернуть отмененное действие" data-sidebar-tooltip="Вернуть">
               <span class="sidebar-nav__icon sidebar-nav__icon--utility" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none">
                   <path d="M15 7L19.5 11.5L15 16"></path>
                   <path d="M18.5 11.5H10C6.96243 11.5 4.5 13.9624 4.5 17"></path>
                 </svg>
               </span>
-              <span class="sidebar__utility-label">Redo</span>
+              <span class="sidebar__utility-label">Вернуть</span>
             </button>
           </div>
         </section>
@@ -166,12 +166,12 @@
               <strong id="sidebarMonthLabel">Март 2026</strong>
             </div>
             <div class="sidebar-month__controls">
-              <button class="icon-btn sidebar-month__nav-btn" id="prevMonthBtn" type="button" aria-label="Предыдущий месяц" title="Предыдущий месяц">
+              <button class="icon-btn sidebar-month__nav-btn" id="prevMonthBtn" type="button" aria-label="Предыдущий месяц" title="Предыдущий месяц" data-sidebar-tooltip="Предыдущий месяц">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M14.5 6.5L9 12L14.5 17.5"></path>
                 </svg>
               </button>
-              <button class="sidebar-month__today-btn" id="todayBtn" type="button" aria-label="Перейти к текущему месяцу" title="Перейти к текущему месяцу">
+              <button class="sidebar-month__today-btn" id="todayBtn" type="button" aria-label="Перейти к текущему месяцу" title="Перейти к текущему месяцу" data-sidebar-tooltip="Текущий месяц">
                 <span class="sidebar-month__today-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none">
                     <rect x="4.5" y="5.5" width="15" height="14" rx="3"></rect>
@@ -183,7 +183,7 @@
                 </span>
                 <span class="sidebar-month__today-label">Сейчас</span>
               </button>
-              <button class="icon-btn sidebar-month__nav-btn" id="nextMonthBtn" type="button" aria-label="Следующий месяц" title="Следующий месяц">
+              <button class="icon-btn sidebar-month__nav-btn" id="nextMonthBtn" type="button" aria-label="Следующий месяц" title="Следующий месяц" data-sidebar-tooltip="Следующий месяц">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M9.5 6.5L15 12L9.5 17.5"></path>
                 </svg>
@@ -194,7 +194,7 @@
 
         <section class="sidebar__card sidebar__card--nav">
           <nav class="sidebar-nav" aria-label="Разделы приложения">
-            <button class="tabbar__btn is-active" data-tab-target="overviewTab" type="button">
+            <button class="tabbar__btn is-active" data-tab-target="overviewTab" type="button" aria-label="Бюджет" data-sidebar-tooltip="Бюджет">
               <span class="sidebar-nav__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none">
                   <path d="M7 6.5H18.5"></path>
@@ -207,7 +207,7 @@
               </span>
               <span class="sidebar-nav__label">Бюджет</span>
             </button>
-            <button class="tabbar__btn" data-tab-target="analyticsTab" type="button">
+            <button class="tabbar__btn" data-tab-target="analyticsTab" type="button" aria-label="Аналитика" data-sidebar-tooltip="Аналитика">
               <span class="sidebar-nav__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none">
                   <path d="M5 19.5H19"></path>
@@ -218,7 +218,7 @@
               </span>
               <span class="sidebar-nav__label">Аналитика</span>
             </button>
-            <button class="tabbar__btn" data-tab-target="monthsTab" type="button">
+            <button class="tabbar__btn" data-tab-target="monthsTab" type="button" aria-label="Месяцы" data-sidebar-tooltip="Месяцы">
               <span class="sidebar-nav__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none">
                   <rect x="4.5" y="5.5" width="15" height="14" rx="3"></rect>
@@ -229,7 +229,7 @@
               </span>
               <span class="sidebar-nav__label">Месяцы</span>
             </button>
-            <button class="tabbar__btn" data-tab-target="settingsTab" type="button">
+            <button class="tabbar__btn" data-tab-target="settingsTab" type="button" aria-label="Настройки" data-sidebar-tooltip="Настройки">
               <span class="sidebar-nav__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none">
                   <path d="M6 7.5H18"></path>
@@ -244,7 +244,7 @@
         </section>
 
         <section class="sidebar__card sidebar__card--status">
-          <div class="sync-pill" id="syncPill">
+          <div class="sync-pill" id="syncPill" data-sidebar-tooltip="Статус синхронизации">
             <span class="sync-pill__icon" aria-hidden="true">
               <span class="sync-pill__dot" id="syncDot"></span>
             </span>
@@ -256,17 +256,17 @@
           </div>
 
           <div class="sidebar__utility-row">
-            <button class="icon-btn sidebar__utility-btn" id="themeToggleBtn" type="button" aria-label="Переключить тему">
+            <button class="icon-btn sidebar__utility-btn" id="themeToggleBtn" type="button" aria-label="Включить светлую тему" data-sidebar-tooltip="Тёмная тема">
               <span class="sidebar-nav__icon sidebar-nav__icon--utility" aria-hidden="true">
                 <span id="themeToggleIcon">◐</span>
               </span>
-              <span class="sidebar__utility-label">Тема</span>
+              <span class="sidebar__utility-label" id="themeToggleLabel">Тёмная тема</span>
             </button>
           </div>
         </section>
 
         <div class="sidebar__footer">
-          <button class="btn btn--primary sidebar__account-btn" id="accountBtn" type="button">
+          <button class="btn btn--primary sidebar__account-btn" id="accountBtn" type="button" aria-label="Аккаунт" data-sidebar-tooltip="Аккаунт">
             <span class="sidebar-nav__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
                 <circle cx="12" cy="8.5" r="3"></circle>
