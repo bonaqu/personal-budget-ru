@@ -564,6 +564,14 @@ body[data-theme="light"] :is(.empty-state, .goal-card--empty) {
     min-height: 0 !important;
     max-height: none !important;
   }
+
+  .settings-panel--quick .quick-card__top {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .settings-panel--quick .quick-card__actions {
+    justify-content: flex-start !important;
+  }
 }
 
 @media (min-width: 1281px) and (max-width: 1500px),

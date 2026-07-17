@@ -1,5 +1,5 @@
 import { env, exports } from "cloudflare:workers";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const ORIGIN = "http://app.test";
 
@@ -154,5 +154,27 @@ describe("Personal Budget Worker", () => {
       body: { login, password: "replacement strong password" }
     });
     expect(loginResult.response.status).toBe(200);
+  });
+
+  it("keeps structured logs useful without writing account identifiers or credentials", async () => {
+    const login = `private_${crypto.randomUUID().slice(0, 8)}`;
+    const password = "private password for log test";
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const registered = await api("/register", {
+        method: "POST",
+        body: { login, password, deviceName: "Private device" }
+      });
+      expect(registered.response.status).toBe(201);
+      const renderedLogs = logSpy.mock.calls.map((args) => args.join(" "));
+      expect(renderedLogs.some((line) => line.includes('"tag":"register.success"'))).toBe(true);
+      const combined = renderedLogs.join("\n");
+      expect(combined).not.toContain(login);
+      expect(combined).not.toContain(password);
+      expect(combined).not.toContain(registered.json.token);
+      expect(combined).not.toContain(registered.json.recoveryCode);
+    } finally {
+      logSpy.mockRestore();
+    }
   });
 });

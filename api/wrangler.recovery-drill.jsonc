@@ -1,0 +1,17 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "personal-budget-recovery-operations",
+  "main": "worker.js",
+  "compatibility_date": "2026-07-17",
+  "vars": {
+    "RECOVERY_DRILL_ONLY": "true"
+  },
+  "d1_databases": [
+    {
+      "binding": "RECOVERY_DRILL_DB",
+      "database_name": "personal-budget-recovery-drill",
+      "database_id": "a129dc75-92eb-48b8-b30e-02f54c2e5bc2",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

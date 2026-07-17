@@ -857,6 +857,7 @@ Object.assign(UI, {
     Utils.setHelpText(exportBtn, exportHelp);
     Utils.setHelpText(importBtn, importHelp);
     Utils.setHelpText(backupNote, "Поддерживаются и резервные копии из прошлых версий приложения, если структура данных совместима.");
+    this.renderBackupReminder();
     App.runAfterNextPaint(() => {
       if (Store.activeTab !== "settingsTab") {
         return;
@@ -865,6 +866,50 @@ Object.assign(UI, {
         this.scheduleSettingsQuickScrollReset?.([0, 1, 3, 5, 8]);
     }, 2);
 
+  },
+
+  renderBackupReminder() {
+    const root = Utils.$("backupReminder");
+    const text = Utils.$("backupReminderText");
+    if (!root || !text) return;
+
+    const profile = Auth.getLogin() || "local";
+    const now = Date.now();
+    const meta = Storage.loadBackupMeta(profile);
+    let firstSeenAt = Date.parse(meta.firstSeenAt || "");
+    const lastExportedAt = Date.parse(meta.lastExportedAt || "");
+    if (!Number.isFinite(firstSeenAt)) {
+      firstSeenAt = now;
+      Storage.saveBackupMeta(profile, {
+        firstSeenAt: new Date(firstSeenAt).toISOString(),
+        lastExportedAt: Number.isFinite(lastExportedAt) ? new Date(lastExportedAt).toISOString() : null
+      });
+    }
+
+    const referenceTime = Number.isFinite(lastExportedAt) ? lastExportedAt : firstSeenAt;
+    const ageDays = Math.max(0, Math.floor((now - referenceTime) / 86400000));
+    const dayWord = ageDays % 10 === 1 && ageDays % 100 !== 11
+      ? "день"
+      : ([2, 3, 4].includes(ageDays % 10) && ![12, 13, 14].includes(ageDays % 100) ? "дня" : "дней");
+
+    if (Number.isFinite(lastExportedAt) && ageDays < 30) {
+      root.dataset.state = "recent";
+      text.textContent = ageDays === 0
+        ? "Последняя резервная копия создана сегодня на этом устройстве."
+        : `Последняя резервная копия создана ${ageDays} ${dayWord} назад на этом устройстве.`;
+      return;
+    }
+
+    if (ageDays >= 30) {
+      root.dataset.state = "due";
+      text.textContent = Number.isFinite(lastExportedAt)
+        ? `Резервная копия не обновлялась ${ageDays} ${dayWord}. Рекомендуем скачать новую.`
+        : `Резервная копия не создавалась уже ${ageDays} ${dayWord}. Рекомендуем скачать первую.`;
+      return;
+    }
+
+    root.dataset.state = "new";
+    text.textContent = "Резервная копия на этом устройстве ещё не создавалась.";
   },
 
   syncSettingsLayout() {

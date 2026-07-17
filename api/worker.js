@@ -17,6 +17,10 @@ const MAX_AUTH_BODY_BYTES = 8_192;
 const DATA_CHUNK_CHARS = 200_000;
 const API_VERSION = 2;
 const encoder = new TextEncoder();
+const LOG_CONTEXT_KEYS = new Set([
+  "requestId", "endpoint", "code", "status", "message",
+  "revision", "size", "chunks", "upgraded"
+]);
 
 export default {
   async fetch(request, env) {
@@ -64,18 +68,9 @@ export default {
         requestId: meta.requestId,
         endpoint: meta.endpoint,
         code,
-        status
+        status,
+        ...(status >= 500 ? { message: error instanceof Error ? error.message : "Unknown error" } : {})
       });
-      if (status >= 500) {
-        console.error(JSON.stringify({
-          level: "error",
-          tag: "api.request.fatal",
-          requestId: meta.requestId,
-          endpoint: meta.endpoint,
-          code,
-          message: error instanceof Error ? error.message : "Unknown error"
-        }));
-      }
       return jsonError(
         meta,
         request,
@@ -190,8 +185,13 @@ function httpError(status, message, code = "API_ERROR", publicDetails = {}) {
 }
 
 function logEvent(level, tag, context = {}) {
+  const safeContext = {};
+  Object.entries(context).forEach(([key, value]) => {
+    if (!LOG_CONTEXT_KEYS.has(key) || !["string", "number", "boolean"].includes(typeof value)) return;
+    safeContext[key] = typeof value === "string" ? value.slice(0, 180) : value;
+  });
   const logger = level === "error" ? console.error : (level === "warn" ? console.warn : console.log);
-  logger(JSON.stringify({ level, tag, ts: new Date().toISOString(), ...context }));
+  logger(JSON.stringify({ level, tag, ...safeContext }));
 }
 
 async function readJsonBody(request, maxBytes) {
@@ -468,7 +468,7 @@ async function register(request, env, meta) {
     throw error;
   }
   const session = await createSession(env, login, request, body.deviceName);
-  logEvent("info", "register.success", { requestId: meta.requestId, login });
+  logEvent("info", "register.success", { requestId: meta.requestId });
   return jsonOk(meta, request, env, { ...session, recoveryCode, revision: 0 }, 201);
 }
 
@@ -497,7 +497,7 @@ async function login(request, env, meta) {
     await env.DB.prepare("UPDATE users SET last_login_at = ? WHERE login = ?").bind(now, login).run();
   }
   const session = await createSession(env, login, request, body.deviceName);
-  logEvent("info", "login.success", { requestId: meta.requestId, login, upgraded: verification.needsUpgrade });
+  logEvent("info", "login.success", { requestId: meta.requestId, upgraded: verification.needsUpgrade });
   return jsonOk(meta, request, env, { ...session, revision: Number(user.revision) || 0 });
 }
 
@@ -505,7 +505,6 @@ async function loadData(request, env, meta) {
   const expectedLogin = normalizeLogin(new URL(request.url).searchParams.get("login"));
   const { user, login } = await requireSession(request, env, expectedLogin);
   const data = await readUserData(env, user);
-  logEvent("info", "load.success", { requestId: meta.requestId, login, revision: Number(user.revision) || 0 });
   return jsonOk(meta, request, env, {
     data,
     revision: Number(user.revision) || 0,
@@ -549,7 +548,7 @@ async function saveData(request, env, meta) {
     "DELETE FROM user_data_chunks WHERE user_login = ? AND save_id <> (SELECT data_version FROM users WHERE login = ?)"
   ).bind(login, login).run();
   const revision = baseRevision + 1;
-  logEvent("info", "save.success", { requestId: meta.requestId, login, revision, size, chunks: chunks.length });
+  logEvent("info", "save.success", { requestId: meta.requestId, revision, size, chunks: chunks.length });
   return jsonOk(meta, request, env, { revision, updatedAt, size });
 }
 
@@ -565,7 +564,6 @@ async function logout(request, env, meta) {
   const login = normalizeLogin(body.login);
   const { sessionId } = await requireSession(request, env, login);
   await env.DB.prepare("UPDATE sessions SET revoked_at = ? WHERE id = ?").bind(Date.now(), sessionId).run();
-  logEvent("info", "logout.success", { requestId: meta.requestId, login, sessionId });
   return jsonOk(meta, request, env);
 }
 
@@ -601,7 +599,7 @@ async function revokeSession(request, env, meta) {
     await env.DB.prepare("UPDATE sessions SET revoked_at = ? WHERE id = ? AND user_login = ? AND revoked_at = 0")
       .bind(now, targetId, login).run();
   }
-  logEvent("info", "session.revoked", { requestId: meta.requestId, login });
+  logEvent("info", "session.revoked", { requestId: meta.requestId });
   return jsonOk(meta, request, env);
 }
 
@@ -622,7 +620,7 @@ async function changePassword(request, env, meta) {
     env.DB.prepare("UPDATE sessions SET revoked_at = ? WHERE user_login = ? AND id <> ? AND revoked_at = 0")
       .bind(now, login, sessionId)
   ]);
-  logEvent("info", "password.changed", { requestId: meta.requestId, login });
+  logEvent("info", "password.changed", { requestId: meta.requestId });
   return jsonOk(meta, request, env);
 }
 
@@ -647,7 +645,7 @@ async function recoverPassword(request, env, meta) {
       .bind(record.hash, record.salt, record.iterations, record.algo, await recoveryHash(nextRecoveryCode), nowIso, nowIso, login),
     env.DB.prepare("UPDATE sessions SET revoked_at = ? WHERE user_login = ? AND revoked_at = 0").bind(now, login)
   ]);
-  logEvent("info", "password.recovered", { requestId: meta.requestId, login });
+  logEvent("info", "password.recovered", { requestId: meta.requestId });
   return jsonOk(meta, request, env, { recoveryCode: nextRecoveryCode });
 }
 
@@ -659,7 +657,7 @@ async function regenerateRecoveryCode(request, env, meta) {
   const now = new Date().toISOString();
   await env.DB.prepare("UPDATE users SET recovery_code_hash = ?, recovery_created_at = ? WHERE login = ?")
     .bind(await recoveryHash(recoveryCode), now, login).run();
-  logEvent("info", "recovery.regenerated", { requestId: meta.requestId, login });
+  logEvent("info", "recovery.regenerated", { requestId: meta.requestId });
   return jsonOk(meta, request, env, { recoveryCode });
 }
 
