@@ -5533,6 +5533,10 @@ body[data-theme="light"] .account-menu__status.is-error {
   gap: var(--entry-row-grid-gap) !important;
 }
 
+.journal-section .entry-row .entry-field__label {
+  overflow: visible !important;
+}
+
 .journal-section .entry-row :is(
   .entry-field__control,
   .entry-day-control,
