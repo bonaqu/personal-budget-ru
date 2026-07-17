@@ -291,6 +291,22 @@
   gap: 10px;
 }
 
+.account-choice__cancel {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid color-mix(in srgb, var(--surface-border-soft) 76%, transparent);
+}
+
+.account-choice__cancel p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.79rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
 @media (max-width: 640px) {
   .account-menu__hero {
     grid-template-columns: 1fr;

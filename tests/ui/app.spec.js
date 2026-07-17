@@ -9,6 +9,81 @@ async function loginDemo(page) {
   await expect(page.locator("#appShell")).toBeVisible();
 }
 
+async function prepareAuthenticatedSourceChoice(page, { matching }) {
+  await page.goto("/");
+  await page.evaluate(async ({ shouldMatch }) => {
+    const deviceData = defaultData();
+    deviceData.transactions = [{
+      id: "source-choice-transaction",
+      type: "expense",
+      flowKind: "standard",
+      amount: 1250,
+      categoryId: "exp_food",
+      description: "Проверка выбора источника",
+      date: "2026-07-17",
+      position: 0,
+      createdAt: "2026-07-17T08:00:00.000Z",
+      updatedAt: "2026-07-17T08:00:00.000Z"
+    }];
+    deviceData.months["2026-07"] = {
+      start: 5000,
+      manualStart: true,
+      updatedAt: "2026-07-17T08:00:00.000Z"
+    };
+    const cloudData = structuredClone(deviceData);
+    if (!shouldMatch) {
+      cloudData.transactions[0].amount = 1500;
+      cloudData.transactions[0].updatedAt = "2026-07-17T09:00:00.000Z";
+    }
+
+    Storage.saveCache(null, deviceData);
+    Storage.saveCache("source_choice_user", defaultData());
+    await Auth.setSession("source_choice_user", "source-choice-token", {
+      serverExpiresAt: Date.now() + 60 * 60 * 1000,
+      idleTimeoutMs: 60 * 60 * 1000
+    });
+    Api.load = async () => ({ data: cloudData, revision: 7 });
+    window.__sourceChoiceFlow = App.resolveAuthenticatedDataFlow({ mode: "login" });
+  }, { shouldMatch: matching });
+}
+
+test("matching device and cloud data automatically use the cloud version", async ({ page }) => {
+  await prepareAuthenticatedSourceChoice(page, { matching: true });
+  await page.evaluate(() => window.__sourceChoiceFlow);
+
+  await expect(page.locator("#syncChoiceModal")).toHaveAttribute("aria-hidden", "true");
+  await expect(page.locator("#appShell")).toBeVisible();
+  await expect(page.locator("#toastStack")).toContainText("Данные на устройстве и в облаке совпадают. Загружена облачная версия");
+  expect(await page.evaluate(() => Store.data.transactions[0]?.amount)).toBe(1250);
+});
+
+test("different sources explain cancellation and keep device data without sync", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await prepareAuthenticatedSourceChoice(page, { matching: false });
+
+  const modal = page.locator("#syncChoiceModal .modal__dialog");
+  await expect(modal).toBeVisible();
+  await expect(page.locator("#syncChoiceCancelHint")).toHaveText("Данные на устройстве сохранятся, но облачная синхронизация не включится.");
+  await expect(page.locator("#syncChoiceCancelBtn")).toHaveText("Отменить вход и продолжить без синхронизации");
+  const spacing = await page.locator(".account-choice__cancel").evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      marginTop: Number.parseFloat(style.marginTop),
+      paddingTop: Number.parseFloat(style.paddingTop)
+    };
+  });
+  expect(spacing.marginTop).toBeGreaterThanOrEqual(16);
+  expect(spacing.paddingTop).toBeGreaterThanOrEqual(14);
+
+  await page.locator("#syncChoiceCancelBtn").click();
+  await page.evaluate(() => window.__sourceChoiceFlow);
+  expect(await page.evaluate(() => ({
+    authenticated: Auth.isAuthenticated(),
+    amount: Store.data.transactions[0]?.amount,
+    pending: Storage.loadPending("source_choice_user")
+  }))).toEqual({ authenticated: false, amount: 1250, pending: null });
+});
+
 test("auth and recovery dialogs have usable semantics", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("#authScreen")).toBeVisible();

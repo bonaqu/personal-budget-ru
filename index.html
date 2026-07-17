@@ -1151,7 +1151,7 @@
       <div class="modal__head">
         <p class="eyebrow">Выбор источника</p>
         <h3 id="syncChoiceTitle">Какую версию бюджета взять за основу</h3>
-        <p class="modal__subtext">Мы нашли данные и на этом устройстве, и в аккаунте. Выберите версию, с которой продолжим работу.</p>
+        <p class="modal__subtext">Данные на устройстве и в облаке различаются. Выберите версию, с которой продолжим работу.</p>
       </div>
       <div class="account-choice">
         <article class="account-choice__card">
@@ -1165,7 +1165,10 @@
           <button class="btn btn--secondary btn--block" id="syncChoiceUseCloudBtn" type="button">Взять данные из облака</button>
         </article>
       </div>
-        <button class="btn btn--ghost btn--block" id="syncChoiceCancelBtn" type="button">Остаться на этом устройстве без входа</button>
+      <div class="account-choice__cancel">
+        <p id="syncChoiceCancelHint">Данные на устройстве сохранятся, но облачная синхронизация не включится.</p>
+        <button class="btn btn--ghost btn--block" id="syncChoiceCancelBtn" type="button" aria-describedby="syncChoiceCancelHint">Отменить вход и продолжить без синхронизации</button>
+      </div>
     </div>
   </div>
 

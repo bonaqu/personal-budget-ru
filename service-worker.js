@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "personal-budget-shell-v15-20260717-backup-reminder";
+const CACHE_NAME = "personal-budget-shell-v16-20260717-source-choice";
 const BUILD_ASSETS = ["__VITE_BUILD_ASSETS__"];
 const APP_SHELL = BUILD_ASSETS.length === 1 && BUILD_ASSETS[0] === "__VITE_BUILD_ASSETS__" ? [
   "./",
