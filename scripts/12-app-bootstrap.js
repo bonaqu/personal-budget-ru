@@ -723,12 +723,15 @@ const App = {
 
     const deviceCandidate = hasGuest ? guestData : localAccount;
     const hasDeviceCandidate = hasMeaningfulData(deviceCandidate);
+    const deviceAndCloudMatch = hasDeviceCandidate && isSemanticallySameData(deviceCandidate, remoteData);
 
-    if (!hasDeviceCandidate || isSemanticallySameData(deviceCandidate, remoteData)) {
+    if (!hasDeviceCandidate || deviceAndCloudMatch) {
       await this.applyAuthenticatedData(remoteData, {
         clearGuest: hasGuest,
         syncUp: false,
-        toastMessage: "Аккаунт подключен. Загружена актуальная версия из облака"
+        toastMessage: deviceAndCloudMatch
+          ? "Данные на устройстве и в облаке совпадают. Загружена облачная версия"
+          : "Аккаунт подключен. Загружена актуальная версия из облака"
       });
       return;
     }
@@ -771,12 +774,12 @@ const App = {
     Sync.status = "local";
     Sync.lastSyncedAt = null;
     Sync.lastError = "";
-    Store.setData(guestData, { save: false });
+    Store.setData(deviceCandidate, { save: false });
     Store.saveLocal();
     Store.resetHistory();
     UI.showApp();
     UI.renderApp();
-    UI.toast("Вход отменен. Продолжаем работу с данными на этом устройстве.", "info");
+    UI.toast("Вход отменен. Данные остаются на устройстве без облачной синхронизации.", "info");
   },
 
   async authenticate(source, mode) {
