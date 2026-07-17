@@ -494,12 +494,6 @@ const App = {
 
     const choice = await this.promptSyncChoice({ login, guestData: localData, remoteData });
     if (choice === "cloud") {
-      if (!this.exportBackup({ silent: true, filePrefix: "conflict_device", data: localData })) {
-        Sync.status = "conflict";
-        Sync.lastError = "Локальную версию не удалось сохранить в файл. Облачная версия не применена.";
-        UI.toast(Sync.lastError, "error");
-        return;
-      }
       Storage.clearPending(login);
       Store.setData(remoteData, { save: true });
       Store.resetHistory();
@@ -508,7 +502,7 @@ const App = {
       Sync.lastSyncedAt = Utils.nowISO();
       Storage.saveLastSync(login, Sync.lastSyncedAt);
       UI.renderApp();
-      UI.toast("Выбрана более свежая облачная версия. Предыдущая локальная копия сохранена отдельным backup-файлом.", "success");
+      UI.toast("Выбрана более свежая облачная версия.", "success");
       return;
     }
     if (choice === "local") {
@@ -755,10 +749,6 @@ const App = {
       return;
     }
     if (choice === "cloud") {
-      if (!this.exportBackup({ silent: true, filePrefix: "before_cloud", data: deviceCandidate })) {
-        UI.toast("Не удалось сохранить локальную версию. Переключение на облачную отменено.", "error");
-        return;
-      }
       await this.applyAuthenticatedData(remoteData, {
         clearGuest: hasGuest,
         syncUp: false,

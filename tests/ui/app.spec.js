@@ -84,6 +84,26 @@ test("different sources explain cancellation and keep device data without sync",
   }))).toEqual({ authenticated: false, amount: 1250, pending: null });
 });
 
+test("choosing cloud never downloads a backup automatically", async ({ page }) => {
+  await prepareAuthenticatedSourceChoice(page, { matching: false });
+  await page.evaluate(() => {
+    window.__unexpectedBackupCalls = 0;
+    App.exportBackup = () => {
+      window.__unexpectedBackupCalls += 1;
+      return true;
+    };
+  });
+
+  await page.locator("#syncChoiceUseCloudBtn").click();
+  await page.evaluate(() => window.__sourceChoiceFlow);
+
+  expect(await page.evaluate(() => ({
+    backupCalls: window.__unexpectedBackupCalls,
+    authenticated: Auth.isAuthenticated(),
+    amount: Store.data.transactions[0]?.amount
+  }))).toEqual({ backupCalls: 0, authenticated: true, amount: 1500 });
+});
+
 test("auth and recovery dialogs have usable semantics", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("#authScreen")).toBeVisible();
