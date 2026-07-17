@@ -13,4 +13,6 @@ Before a production migration, export D1 to a path outside the repository, then 
 
 `GET /health` is a readiness check: it performs a read-only `SELECT 1` against D1 and returns the Worker version metadata. `HEAD /health` remains a lightweight liveness check. Responses expose `X-Request-Id`, `X-API-Version` and `Server-Timing` to the allowed frontend origin for safe production diagnostics.
 
-The tracked config enables structured Workers Logs, sampled traces and the `CF_VERSION_METADATA` binding. The ignored production config must keep the same non-secret observability fields and binding names.
+The tracked config keeps complete low-volume Workers Logs and samples 1% of traces. Success logs are limited to meaningful writes and security events, while login names, session IDs and financial data are never included. The ignored production config must keep the same non-secret observability fields and the `CF_VERSION_METADATA` binding.
+
+The tested D1 Time Travel procedure is documented in [`../docs/d1-recovery.md`](../docs/d1-recovery.md). Its automation is hard-locked to the separate `personal-budget-recovery-drill` database and never targets production.

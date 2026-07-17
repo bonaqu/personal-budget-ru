@@ -7,6 +7,7 @@ const CONFIG = {
   LEGACY_QUEUE_KEY: "budget_flow_ru_pending_v3",
   CACHE_PREFIX: "budget_flow_ru_cache_",
   LAST_SYNC_PREFIX: "budget_flow_ru_last_sync_",
+  BACKUP_META_PREFIX: "budget_flow_ru_backup_meta_v1_",
   REVISION_PREFIX: "budget_flow_ru_revision_",
   SIDEBAR_KEY: "budget_flow_ru_sidebar_collapsed_v1",
   BUDGET_FILTERS_KEY: "budget_flow_ru_budget_filters_collapsed_v1",

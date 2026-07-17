@@ -148,6 +148,27 @@ const Storage = {
     return this.write(`${CONFIG.LAST_SYNC_PREFIX}${login}`, value);
   },
 
+  backupMetaKey(login) {
+    return `${CONFIG.BACKUP_META_PREFIX}${login || "local"}`;
+  },
+
+  loadBackupMeta(login) {
+    const meta = this.read(this.backupMetaKey(login), {});
+    return meta && typeof meta === "object" ? meta : {};
+  },
+
+  saveBackupMeta(login, value) {
+    return this.write(this.backupMetaKey(login), value);
+  },
+
+  markBackupExported(login, exportedAt = Utils.nowISO()) {
+    const current = this.loadBackupMeta(login);
+    return this.saveBackupMeta(login, {
+      firstSeenAt: current.firstSeenAt || exportedAt,
+      lastExportedAt: exportedAt
+    });
+  },
+
   loadRevision(login) {
     const revision = Number(this.readText(`${CONFIG.REVISION_PREFIX}${login}`, "0"));
     return Number.isSafeInteger(revision) && revision >= 0 ? revision : 0;

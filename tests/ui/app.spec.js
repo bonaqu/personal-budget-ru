@@ -663,3 +663,33 @@ test("backup copy is concise and keeps the safety explanation", async ({ page })
     "Сохраняет резервную копию бюджета для переноса на другое устройство или восстановления."
   );
 });
+
+test("settings quick cards remain readable on mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loginDemo(page);
+  await page.locator('.mobile-bottom-nav [data-tab-target="settingsTab"]').click();
+  const quickBody = page.locator(".settings-panel--quick .quick-card__body").first();
+  await expect(quickBody).toBeVisible();
+  expect(await quickBody.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(240);
+});
+
+test("backup reminder stays quiet until due and resets after a successful export", async ({ page }) => {
+  await loginDemo(page);
+  await page.locator('.sidebar-nav [data-tab-target="settingsTab"]').click();
+  await expect(page.locator("#backupReminder")).toHaveAttribute("data-state", "new");
+  await expect(page.locator("#backupReminderText")).toContainText("ещё не создавалась");
+
+  await page.evaluate(() => {
+    const overdue = new Date(Date.now() - 31 * 86400000).toISOString();
+    Storage.saveBackupMeta(Auth.getLogin(), { firstSeenAt: overdue, lastExportedAt: null });
+    UI.renderBackupReminder();
+  });
+  await expect(page.locator("#backupReminder")).toHaveAttribute("data-state", "due");
+  await expect(page.locator("#backupReminderText")).toContainText("31 день");
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#exportBtn").click();
+  await downloadPromise;
+  await expect(page.locator("#backupReminder")).toHaveAttribute("data-state", "recent");
+  await expect(page.locator("#backupReminderText")).toContainText("сегодня");
+});

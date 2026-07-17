@@ -875,6 +875,10 @@
               <input id="importFileInput" type="file" accept="application/json" hidden>
             </div>
             <div class="settings-panel__status settings-panel__status--backup" id="backupStatus" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+            <div class="backup-reminder" id="backupReminder" data-state="new" role="status" aria-live="polite" aria-atomic="true">
+              <span class="backup-reminder__dot" aria-hidden="true"></span>
+              <span id="backupReminderText">Проверяем дату последней резервной копии.</span>
+            </div>
             <div class="backup-note" id="backupNote">
               Подойдет для резервной копии, переноса между устройствами и восстановления, если что-то пойдет не так.
             </div>

@@ -231,6 +231,49 @@
   color: var(--text-soft);
 }
 
+.backup-reminder {
+  margin-top: 10px;
+  padding: 9px 11px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-card-soft) 90%, transparent);
+  color: var(--text-soft);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.backup-reminder__dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  margin-top: 0.32em;
+  border-radius: 50%;
+  background: var(--text-soft);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-soft) 12%, transparent);
+}
+
+.backup-reminder[data-state="recent"] {
+  border-color: color-mix(in srgb, var(--success) 24%, var(--line));
+}
+
+.backup-reminder[data-state="recent"] .backup-reminder__dot {
+  background: var(--success);
+  box-shadow: 0 0 0 3px rgb(var(--success-rgb) / 0.12);
+}
+
+.backup-reminder[data-state="due"] {
+  border-color: color-mix(in srgb, var(--warning) 28%, var(--line));
+  color: var(--text-main);
+}
+
+.backup-reminder[data-state="due"] .backup-reminder__dot {
+  background: var(--warning);
+  box-shadow: 0 0 0 3px rgb(var(--warning-rgb) / 0.13);
+}
+
 .pwa-install {
   margin-top: 14px;
   padding: 12px;

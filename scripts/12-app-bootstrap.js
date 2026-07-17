@@ -2143,6 +2143,8 @@ const App = {
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 0);
       if (!silent) {
+        Storage.markBackupExported(Auth.getLogin() || "local", backup.exportedAt);
+        UI.renderBackupReminder?.();
         UI.setBackupStatus("Резервная копия проверена и готова. Браузер уже начал скачивание.", "success");
         UI.toast("Резервная копия готова", "success");
       }
