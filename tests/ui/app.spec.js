@@ -470,6 +470,47 @@ test("long labels and large amounts fit narrow and 200 percent equivalent layout
   await expect(page.getByText("Очень длинная категория для проверки переноса").first()).toBeVisible();
 });
 
+test("compact operation rows show every field label without becoming taller", async ({ page }) => {
+  await loginDemo(page);
+  const rows = page.locator(".journal-section .entry-row:not(.entry-row--wishlist)");
+  expect(await rows.count()).toBeGreaterThan(0);
+
+  const metrics = await rows.first().evaluate((row) => {
+    const rowRect = row.getBoundingClientRect();
+    const fields = ["day", "amount", "desc", "category"].map((name) => {
+      const field = row.querySelector(`.entry-field--${name}`);
+      const label = field.querySelector(".entry-field__label");
+      const control = field.querySelector(".entry-field__control");
+      const textNode = Array.from(label.childNodes).find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim())
+        || label.querySelector(".entry-field__label-text")?.firstChild;
+      const range = document.createRange();
+      range.selectNodeContents(textNode || label);
+      const textRect = range.getBoundingClientRect();
+      const controlRect = control.getBoundingClientRect();
+      return {
+        name,
+        overflow: getComputedStyle(label).overflow,
+        visibleAbove: textRect.top >= rowRect.top - 1.5,
+        visibleBelow: textRect.bottom <= controlRect.top + 1.5
+      };
+    });
+    return {
+      rowHeight: rowRect.height,
+      controlHeight: row.querySelector("input").getBoundingClientRect().height,
+      fields
+    };
+  });
+
+  expect(metrics.rowHeight).toBeLessThanOrEqual(46);
+  expect(metrics.controlHeight).toBeLessThanOrEqual(30.5);
+  expect(metrics.fields).toEqual([
+    { name: "day", overflow: "visible", visibleAbove: true, visibleBelow: true },
+    { name: "amount", overflow: "visible", visibleAbove: true, visibleBelow: true },
+    { name: "desc", overflow: "visible", visibleAbove: true, visibleBelow: true },
+    { name: "category", overflow: "visible", visibleAbove: true, visibleBelow: true }
+  ]);
+});
+
 test("API console diagnostics include request id but never credentials", async ({ page }) => {
   const consoleLines = [];
   page.on("console", (message) => consoleLines.push(message.text()));
