@@ -30,6 +30,8 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+      - name: Check public repository hygiene
+        run: npm run check:public
       - name: Lint
         run: npm run lint
       - name: Test financial core

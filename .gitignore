@@ -4,6 +4,8 @@
 !.dev.vars.example
 .env*
 !.env.example
+/wrangler.jsonc
+/api/wrangler.jsonc
 
 # local worker drafts
 /worker.js
@@ -23,10 +25,19 @@ _*.py
 _*.js
 _*.txt
 
-# local backups and reference sources
-budget_bonaqu_backup_*.json
-текущий код бюджета.txt
-privat_исходники для сверки/
+# private exports and local data
+*backup*.json
+*.bak
+*.backup
+*.dump
+*.sqlite
+*.sqlite3
+*.db
+*.pem
+*.key
+*.p12
+*.pfx
+*.log
 
 # system junk
 Thumbs.db
