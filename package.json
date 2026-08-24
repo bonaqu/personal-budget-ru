@@ -17,11 +17,11 @@
     "smoke:production": "node tests/production-smoke.mjs"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.18.6",
-    "@playwright/test": "^1.61.1",
-    "eslint": "^10.7.0",
-    "vite": "^8.1.5",
-    "vitest": "^4.1.10",
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@playwright/test": "^1.62.1",
+    "eslint": "^10.8.1",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11",
     "wrangler": "^4.112.0"
   },
   "dependencies": {
