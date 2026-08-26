@@ -21,3 +21,7 @@ updates:
       time: "05:15"
       timezone: Europe/Moscow
     open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"

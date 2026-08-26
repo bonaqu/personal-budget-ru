@@ -379,6 +379,18 @@ const Utils = {
     return new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric" }).format(date).replace(/^./, (char) => char.toUpperCase());
   },
 
+  monthLabelPrepositional(monthKey) {
+    const [year, month] = String(monthKey).split("-").map(Number);
+    const monthNames = [
+      "январе", "феврале", "марте", "апреле", "мае", "июне",
+      "июле", "августе", "сентябре", "октябре", "ноябре", "декабре"
+    ];
+    if (!Number.isInteger(year) || !Number.isInteger(month) || !monthNames[month - 1]) {
+      return this.monthLabel(monthKey).toLowerCase();
+    }
+    return `${monthNames[month - 1]} ${year} г.`;
+  },
+
   shortMonthLabel(monthKey) {
     const [year, month] = String(monthKey).split("-").map(Number);
     const date = new Date(year, month - 1, 1);
@@ -448,6 +460,27 @@ const Utils = {
       minimumFractionDigits: 0,
       maximumFractionDigits
     }).format(safe)}%`;
+  },
+
+  pluralRu(value, one, few, many) {
+    const count = Math.abs(Math.trunc(Number(value) || 0));
+    const lastTwo = count % 100;
+    const last = count % 10;
+    if (lastTwo >= 11 && lastTwo <= 14) {
+      return many;
+    }
+    if (last === 1) {
+      return one;
+    }
+    if (last >= 2 && last <= 4) {
+      return few;
+    }
+    return many;
+  },
+
+  formatCount(value, one, few, many) {
+    const count = Math.max(0, Math.trunc(Number(value) || 0));
+    return `${count} ${this.pluralRu(count, one, few, many)}`;
   },
 
   normalizeLookupKey(value) {

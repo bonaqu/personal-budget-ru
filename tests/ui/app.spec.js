@@ -1,4 +1,5 @@
 const { test, expect } = require("@playwright/test");
+const AxeBuilder = require("@axe-core/playwright").default;
 const fs = require("node:fs/promises");
 
 async function loginDemo(page) {
@@ -106,6 +107,9 @@ test("choosing cloud never downloads a backup automatically", async ({ page }) =
 
 test("auth and recovery dialogs have usable semantics", async ({ page }) => {
   await page.goto("/");
+  await expect(page.locator("#authScreen")).toHaveJSProperty("tagName", "MAIN");
+  await expect(page.locator("#skipLink")).toHaveAttribute("href", "#authScreen");
+  await expect(page.locator("#toastStack")).toHaveAttribute("role", "region");
   await expect(page.locator("#authScreen")).toBeVisible();
   await page.locator("#startupRecoverBtn").click();
   const dialog = page.locator("#passwordRecoveryModal .modal__dialog");
@@ -116,6 +120,92 @@ test("auth and recovery dialogs have usable semantics", async ({ page }) => {
   await expect(page.locator("#authScreen")).toHaveAttribute("inert", "");
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
+});
+
+test("authenticated views expose a main heading and a working skip target", async ({ page }) => {
+  await loginDemo(page);
+
+  await expect(page.locator("#skipLink")).toHaveAttribute("href", "#mainContent");
+  await expect(page.locator("#mainViewTitle")).toHaveText("Бюджет");
+  await page.locator('[data-tab-target="analyticsTab"]').first().click();
+  await expect(page.locator("#mainViewTitle")).toHaveText("Аналитика");
+});
+
+test("auth and authenticated budget views have no automated accessibility violations", async ({ page }) => {
+  await page.goto("/");
+  const authResults = await new AxeBuilder({ page }).analyze();
+  expect(authResults.violations).toEqual([]);
+
+  await loginDemo(page);
+  const budgetResults = await new AxeBuilder({ page }).analyze();
+  expect(budgetResults.violations).toEqual([]);
+});
+
+test("financial analytics use the full expense base and preserve change direction", async ({ page }) => {
+  await loginDemo(page);
+  await page.evaluate(() => {
+    const data = defaultData();
+    const timestamp = "2026-07-10T10:00:00.000Z";
+    const makeExpense = (id, amount, categoryId, date) => ({
+      id,
+      type: "expense",
+      flowKind: "standard",
+      amount,
+      categoryId,
+      description: id,
+      date,
+      position: 1,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    });
+    data.transactions = [
+      makeExpense("previous", 1000, "exp_food", "2026-06-10"),
+      makeExpense("current-1", 600, "exp_food", "2026-07-01"),
+      makeExpense("current-2", 500, "exp_transport", "2026-07-02"),
+      makeExpense("current-3", 400, "exp_health", "2026-07-03"),
+      makeExpense("current-4", 300, "exp_home", "2026-07-04"),
+      makeExpense("current-5", 200, "exp_clothes", "2026-07-05"),
+      makeExpense("current-6", 100, "exp_cafe", "2026-07-06")
+    ];
+    Store.setData(data, { save: false });
+    Store.viewMonth = "2026-07";
+    Store.detailMonth = "2026-07";
+    Store.activeTab = "overviewTab";
+    UI.renderApp();
+  });
+
+  const foodCard = page.locator("#overviewCategoryLegend .budget-limit-card").filter({ hasText: "Еда" });
+  await expect(foodCard).toContainText("28,57% от всех трат");
+
+  await page.locator('[data-tab-target="analyticsTab"]').first().click();
+  const expenseDelta = page.locator("#insightGrid .insight-card").filter({ hasText: "Изменение к прошлому месяцу" });
+  await expect(expenseDelta).toContainText("+110%");
+
+  await page.evaluate(() => {
+    Store.data.transactions = Store.data.transactions.filter((item) => !item.id.startsWith("current-"));
+    Store.data.transactions.push({
+      id: "current-decrease",
+      type: "expense",
+      flowKind: "standard",
+      amount: 500,
+      categoryId: "exp_food",
+      description: "current-decrease",
+      date: "2026-07-10",
+      position: 1,
+      createdAt: "2026-07-10T10:00:00.000Z",
+      updatedAt: "2026-07-10T10:00:00.000Z"
+    });
+    Store.resetDerivedCaches();
+    UI.renderInsights();
+  });
+  await expect(expenseDelta).toContainText("−50%");
+
+  await page.evaluate(() => {
+    Store.data.transactions = Store.data.transactions.filter((item) => item.id !== "previous");
+    Store.resetDerivedCaches();
+    UI.renderInsights();
+  });
+  await expect(expenseDelta).toContainText("Нет базы");
 });
 
 test("favicon keeps a transparent outer canvas", async ({ page }) => {

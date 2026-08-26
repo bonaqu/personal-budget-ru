@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-const frontend = String(process.env.FRONTEND_URL || "https://bonaqu.github.io/personal-budget-tracker-ru/").replace(/\/?$/, "/");
+const frontend = String(process.env.FRONTEND_URL || "https://personal-budget-tracker-ru.pages.dev/").replace(/\/?$/, "/");
 const api = String(process.env.API_URL || "https://personal-budget-api.bonaqu.workers.dev").replace(/\/$/, "");
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));

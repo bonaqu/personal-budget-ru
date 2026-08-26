@@ -432,7 +432,7 @@ const App = {
     if (!Object.values(summary).some((value) => Number(value) > 0)) {
       return `${fallbackLabel}: пока без записей`;
     }
-    return `${fallbackLabel}: ${summary.months} мес. · ${summary.transactions} операций · ${summary.templates} сценариев · ${summary.favorites} избранных · ${summary.wishlist} целей`;
+    return `${fallbackLabel}: ${summary.months} мес. · ${Utils.formatCount(summary.transactions, "операция", "операции", "операций")} · ${Utils.formatCount(summary.templates, "сценарий", "сценария", "сценариев")} · ${Utils.formatCount(summary.favorites, "избранная операция", "избранные операции", "избранных операций")} · ${Utils.formatCount(summary.wishlist, "цель", "цели", "целей")}`;
   },
 
   promptSyncChoice({ login, guestData, remoteData }) {
@@ -2211,7 +2211,7 @@ const App = {
         const summary = audit.summary;
         const confirmed = await UI.confirmAction({
           title: "Заменить текущий бюджет?",
-          message: `В файле: ${summary.transactions || 0} операций, ${summary.months || 0} месяцев и ${summary.categories || 0} категорий. Перед заменой автоматически скачается резервная копия текущих данных.`,
+          message: `В файле: ${Utils.formatCount(summary.transactions, "операция", "операции", "операций")}, ${Utils.formatCount(summary.months, "месяц", "месяца", "месяцев")} и ${Utils.formatCount(summary.categories, "категория", "категории", "категорий")}. Перед заменой автоматически скачается резервная копия текущих данных.`,
           acceptLabel: "Создать копию и импортировать",
           tone: "danger"
         });

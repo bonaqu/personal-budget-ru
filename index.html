@@ -26,7 +26,7 @@
   <script vite-ignore src="app.bundle.js" defer></script>
 </head>
 <body class="app-booting" data-theme="dark">
-  <a class="skip-link" href="#mainContent">Перейти к основному содержимому</a>
+  <a class="skip-link" id="skipLink" href="#authScreen">Перейти к основному содержимому</a>
   <div class="visually-hidden" id="routeAnnouncer" role="status" aria-live="polite" aria-atomic="true"></div>
   <aside class="update-banner" id="updateBanner" role="status" aria-live="polite" hidden>
     <span>Доступна новая версия приложения. Локальные изменения уже сохранены.</span>
@@ -38,7 +38,7 @@
     <div class="bg-layer__mesh"></div>
   </div>
 
-  <section class="auth-screen" id="authScreen">
+  <main class="auth-screen" id="authScreen" tabindex="-1">
     <div class="auth-shell-card glass-card">
       <div class="auth-shell-card__intro">
         <div class="auth-brand">
@@ -108,7 +108,7 @@
         </form>
       </div>
     </div>
-  </section>
+  </main>
 
   <div class="app-shell is-hidden" id="appShell">
     <aside class="sidebar glass-card" aria-label="Навигация приложения">
@@ -244,7 +244,7 @@
         </section>
 
         <section class="sidebar__card sidebar__card--status">
-          <div class="sync-pill" id="syncPill" data-sidebar-tooltip="Статус синхронизации">
+          <div class="sync-pill" id="syncPill" data-sidebar-tooltip="Статус синхронизации" role="status" aria-live="polite" aria-atomic="true">
             <span class="sync-pill__icon" aria-hidden="true">
               <span class="sync-pill__dot" id="syncDot"></span>
             </span>
@@ -297,6 +297,7 @@
     </div>
 
     <main class="page-grid" id="mainContent" tabindex="-1">
+      <h1 class="visually-hidden" id="mainViewTitle">Бюджет</h1>
       <section class="tab-panel is-active" id="overviewTab">
         <div class="hero-strip glass-card hero-strip--compact">
           <div class="hero-strip__content">
@@ -486,7 +487,7 @@
                   <p class="eyebrow">Фокус расходов</p>
                   <h3>Главные категории месяца</h3>
                 </div>
-                <div class="budget-expense-focus" id="overviewCategoryLegend"></div>
+                <div class="budget-expense-focus" id="overviewCategoryLegend" tabindex="0" aria-label="Главные категории расходов месяца"></div>
               </section>
 
               <section class="budget-side-panel__section budget-side-panel__section--limits" data-budget-side-page="limits">
@@ -1580,7 +1581,7 @@
     <div class="budget-daypad__grid" id="budgetDayPadGrid" role="group" aria-label="Выбор дня месяца"></div>
   </div>
 
-  <div class="toast-stack" id="toastStack" aria-label="Уведомления"></div>
+  <div class="toast-stack" id="toastStack" role="region" aria-label="Уведомления"></div>
 </body>
 </html>
 

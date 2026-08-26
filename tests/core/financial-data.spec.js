@@ -36,6 +36,20 @@ describe("money and local calendar rules", () => {
     expect(core.Utils.isISODate("2026-13-01")).toBe(false);
     expect(core.Utils.isISODate("2026-04-31")).toBe(false);
   });
+
+  it("uses correct Russian count forms", () => {
+    expect(core.Utils.formatCount(1, "операция", "операции", "операций")).toBe("1 операция");
+    expect(core.Utils.formatCount(2, "операция", "операции", "операций")).toBe("2 операции");
+    expect(core.Utils.formatCount(5, "операция", "операции", "операций")).toBe("5 операций");
+    expect(core.Utils.formatCount(11, "операция", "операции", "операций")).toBe("11 операций");
+    expect(core.Utils.formatCount(21, "операция", "операции", "операций")).toBe("21 операция");
+  });
+
+  it("uses the prepositional Russian month form in sentences", () => {
+    expect(core.Utils.monthLabelPrepositional("2026-01")).toBe("январе 2026 г.");
+    expect(core.Utils.monthLabelPrepositional("2026-08")).toBe("августе 2026 г.");
+    expect(core.Utils.monthLabelPrepositional("2026-12")).toBe("декабре 2026 г.");
+  });
 });
 
 describe("normalization and merge safety", () => {

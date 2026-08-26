@@ -4,7 +4,13 @@ Object.assign(UI, {
     const previous = Store.statsForMonth(Store.previousMonthKey(Store.viewMonth));
     const recurringShare = current.totals.expense ? (current.totals.recurring / current.totals.expense) * 100 : 0;
     const debtShare = current.totals.expense ? (current.totals.debt / current.totals.expense) * 100 : 0;
-    const deltaExpense = previous.totals.expense ? ((current.totals.expense - previous.totals.expense) / previous.totals.expense) * 100 : 0;
+    const hasExpenseComparisonBase = previous.totals.expense > 0;
+    const deltaExpense = hasExpenseComparisonBase
+      ? ((current.totals.expense - previous.totals.expense) / previous.totals.expense) * 100
+      : null;
+    const expenseDeltaLabel = deltaExpense === null
+      ? (current.totals.expense > 0 ? "Нет базы" : "0%")
+      : `${deltaExpense > 0 ? "+" : deltaExpense < 0 ? "−" : ""}${Utils.formatPercent(Math.abs(deltaExpense))}`;
     const cards = [
       {
         label: "Прогноз расхода",
@@ -23,8 +29,10 @@ Object.assign(UI, {
       },
       {
         label: "Изменение к прошлому месяцу",
-        value: `${deltaExpense >= 0 ? "+" : ""}${Utils.formatPercent(Math.abs(deltaExpense))}`,
-        description: "Как изменились расходы относительно прошлого месяца"
+        value: expenseDeltaLabel,
+        description: hasExpenseComparisonBase
+          ? "Как изменились расходы относительно прошлого месяца"
+          : "В прошлом месяце не было расходов для процентного сравнения"
       },
       {
         label: "Доля долгов",
@@ -75,7 +83,7 @@ Object.assign(UI, {
       {
         label: "Средний чистый поток",
         value: Utils.formatMoney(averageMonthlyFlow),
-        note: `${current.operations} операций в текущем месяце`
+        note: `${Utils.formatCount(current.operations, "операция", "операции", "операций")} в текущем месяце`
       }
     ];
 
@@ -611,7 +619,9 @@ Object.assign(UI, {
         title: "Топ-категория",
         value: stats.topCategory ? stats.topCategory.name : "Нет данных",
         note: stats.topCategory ? `${Utils.formatMoney(stats.topCategoryAmount)} · ${Utils.formatPercent(stats.concentration)} расходов` : "Структура появится после трат",
-        context: expenseOperations ? `${expenseOperations} расходных операций в месяце` : "Расходов пока нет"
+        context: expenseOperations
+          ? `${Utils.formatCount(expenseOperations, "расходная операция", "расходные операции", "расходных операций")} в месяце`
+          : "Расходов пока нет"
       },
       {
         title: "Средний расход в день",
@@ -631,7 +641,7 @@ Object.assign(UI, {
         note: activeDays
           ? `Движение денег было в ${activeDays} из ${daysInMonth} дней.`
           : "В этом месяце пока не было операций.",
-        context: `${stats.operations} операций за месяц`
+        context: `${Utils.formatCount(stats.operations, "операция", "операции", "операций")} за месяц`
       }
     ];
     const fragment = document.createDocumentFragment();
