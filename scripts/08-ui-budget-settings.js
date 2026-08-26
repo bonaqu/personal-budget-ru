@@ -184,13 +184,13 @@ Object.assign(UI, {
     const allTime = Store.allTimeStats();
     const active = Store.statsForMonth(Store.viewMonth);
     this.renderMonthNavigation();
-    const monthLabelLower = Utils.monthLabel(Store.viewMonth).toLowerCase();
+    const monthLabelLower = Utils.monthLabelPrepositional(Store.viewMonth);
     const balanceTooltip = `Общий баланс показывает итог за всю историю: все доходы минус все расходы по всем месяцам. Он не равен остатку текущего месяца. Чтобы понять, сколько денег остается в выбранном месяце, смотрите карточку "Остаток на конец".`;
-    const incomeTooltip = `Доходы месяца — сумма всех поступлений только за ${Utils.monthLabel(Store.viewMonth).toLowerCase()}. Основание расчета: операции раздела "Доходы" выбранного месяца.`;
+    const incomeTooltip = `Доходы месяца — сумма всех поступлений только за ${Utils.monthLabel(Store.viewMonth).toLowerCase()} Основание расчета: операции раздела "Доходы" выбранного месяца.`;
     const expenseTooltip = `Расходы месяца — сумма всех списаний выбранного месяца, включая долги, обязательные платежи и текущие расходы. Хотелки сюда не попадают, пока вы не перенесете их в расход.`;
     const netTooltip = `Чистый поток — это доходы месяца минус расходы месяца. Положительное значение означает месяц в плюсе, отрицательное — расходов было больше, чем доходов.`;
     const savingsTooltip = `Норма накопления показывает, какая доля дохода осталась после расходов в выбранном месяце. Формула: (доходы - расходы) / доходы * 100%.`;
-    const monthOpsTooltip = `Операций в месяце — сколько строк вы уже добавили в ${Utils.monthLabel(Store.viewMonth).toLowerCase()}. Помогает быстро оценить плотность месяца.`;
+    const monthOpsTooltip = `Операций в месяце — сколько строк вы уже добавили в ${Utils.monthLabelPrepositional(Store.viewMonth)} Помогает быстро оценить плотность месяца.`;
     const averageCheckTooltip = `Средний чек показывает, сколько в среднем уходит на одну расходную операцию в месяце. Помогает заметить, когда покупки становятся тяжелее по сумме.`;
     const topExpenseTooltip = active.topExpense
       ? `Крупнейшая трата месяца — ${Utils.formatMoney(active.topExpense.amount)}. ${active.topExpense.description || "Описание не заполнено"}.`
@@ -246,7 +246,7 @@ Object.assign(UI, {
     this.setBudgetText(nodes.savingsRate, Utils.formatPercent(Math.max(0, active.savingsRate)));
     this.setBudgetText(nodes.monthOpsTotal, String(active.operations));
     this.setBudgetText(nodes.averageCheckTotal, Utils.formatMoney(active.averageCheck));
-    this.setBudgetText(nodes.heroCaption, `${active.operations} операций в ${monthLabelLower} · остаток на конец ${Utils.formatMoney(active.finalBalance)}.`);
+    this.setBudgetText(nodes.heroCaption, `${Utils.formatCount(active.operations, "операция", "операции", "операций")} в ${monthLabelLower} · остаток на конец ${Utils.formatMoney(active.finalBalance)}.`);
     this.setBudgetText(nodes.incomeHint, active.totals.income ? "Все поступления" : "Доходов пока не было");
     this.setBudgetText(nodes.expenseHint, active.totals.expense ? "Все списания" : "Расходов пока не было");
     this.setBudgetText(nodes.netHint, active.totals.balance >= 0 ? "Месяц в плюсе" : "Расходы выше доходов");
@@ -366,7 +366,7 @@ Object.assign(UI, {
     const monthBalanceChart = Utils.$("monthBalanceChart");
     if (monthBalanceChart instanceof HTMLElement) {
       monthBalanceChart.removeAttribute("title");
-      monthBalanceChart.removeAttribute("aria-label");
+      monthBalanceChart.setAttribute("aria-label", "График изменения баланса по дням месяца");
     }
     const monthPlanPanel = monthBalanceChart?.closest("article");
     if (monthPlanPanel instanceof HTMLElement) {
@@ -552,7 +552,7 @@ Object.assign(UI, {
       return;
     }
     const stats = Store.statsForMonth(Store.viewMonth);
-    summary.textContent = `${stats.operations} операций • ${Utils.formatMoney(stats.totals.income)} / ${Utils.formatMoney(stats.totals.expense)}`;
+    summary.textContent = `${Utils.formatCount(stats.operations, "операция", "операции", "операций")} • ${Utils.formatMoney(stats.totals.income)} / ${Utils.formatMoney(stats.totals.expense)}`;
   },
 
   renderJournalRow(section, transaction, options = {}) {
@@ -1005,7 +1005,7 @@ Object.assign(UI, {
     if (listSummary) {
       listSummary.textContent = hasActiveFilters
         ? filteredTransactions.length
-          ? `${filteredTransactions.length} операций · ${Utils.formatMoney(totals.balance)} · ${Store.filters.period === "all" ? "вся история" : "активный месяц"}`
+          ? `${Utils.formatCount(filteredTransactions.length, "операция", "операции", "операций")} · ${Utils.formatMoney(totals.balance)} · ${Store.filters.period === "all" ? "вся история" : "активный месяц"}`
           : "Нет операций под текущие фильтры"
         : "Фильтры выключены. Ниже показан весь бюджет месяца по разделам.";
     }

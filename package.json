@@ -14,15 +14,17 @@
     "test:ui": "playwright test",
     "test:offline": "playwright test --config playwright.offline.config.js",
     "check:worker:ci": "wrangler deploy --dry-run --config api/wrangler.test.jsonc --outdir output/worker-ci-dry-run",
-    "smoke:production": "node tests/production-smoke.mjs"
+    "smoke:production": "node tests/production-smoke.mjs",
+    "deploy:pages": "npm run build && wrangler pages deploy dist --project-name personal-budget-tracker-ru --branch bonaqu_projects"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.18.6",
-    "@playwright/test": "^1.61.1",
-    "eslint": "^10.7.0",
-    "vite": "^8.1.5",
-    "vitest": "^4.1.10",
-    "wrangler": "^4.112.0"
+    "@axe-core/playwright": "^4.13.0",
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@playwright/test": "^1.62.1",
+    "eslint": "^10.9.1",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.126.0"
   },
   "dependencies": {
     "chart.js": "^4.5.1"

@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "personal-budget-shell-v18-20260717-row-labels";
+const CACHE_NAME = "personal-budget-shell-v19-20260825-prod-hardening";
 const BUILD_ASSETS = ["__VITE_BUILD_ASSETS__"];
 const APP_SHELL = BUILD_ASSETS.length === 1 && BUILD_ASSETS[0] === "__VITE_BUILD_ASSETS__" ? [
   "./",

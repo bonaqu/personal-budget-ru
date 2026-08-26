@@ -545,7 +545,9 @@ Object.assign(UI, {
     const detailCount = Utils.createElement(
       "span",
       "payment-calendar-v2__detail-count",
-      selectedDay?.items?.length ? `${selectedDay.items.length} операций` : "Без операций"
+      selectedDay?.items?.length
+        ? Utils.formatCount(selectedDay.items.length, "операция", "операции", "операций")
+        : "Без операций"
     );
     detailsHead.append(detailCopy, detailCount);
 
@@ -741,12 +743,14 @@ Object.assign(UI, {
   showApp() {
     Utils.$("authScreen").classList.add("is-hidden");
     Utils.$("appShell").classList.remove("is-hidden");
+    Utils.$("skipLink")?.setAttribute("href", "#mainContent");
     this.scheduleScrollTopButtonUpdate();
   },
 
   showStartupAuth() {
     Utils.$("appShell").classList.add("is-hidden");
     Utils.$("authScreen").classList.remove("is-hidden");
+    Utils.$("skipLink")?.setAttribute("href", "#authScreen");
     this.clearAuthStatus("startup");
     this.syncAllAuthFields();
     this.scheduleScrollTopButtonUpdate();
@@ -1100,7 +1104,6 @@ Object.assign(UI, {
       if (pill) {
         const summary = [nextTitle, nextSubtitle, nextMeta].filter(Boolean).join(". ");
         pill.title = summary;
-        pill.setAttribute("aria-label", summary);
       }
     };
     const lastSentMeta = Sync.lastSyncedAt ? `Последняя синхронизация: ${Utils.timeSince(Sync.lastSyncedAt)}` : "";
@@ -1367,16 +1370,17 @@ Object.assign(UI, {
     if (shell) {
       shell.classList.toggle("is-mobile-budget-tab", Store.activeTab === "overviewTab");
     }
+    const titles = {
+      overviewTab: "Бюджет",
+      analyticsTab: "Аналитика",
+      monthsTab: "Месяцы",
+      settingsTab: "Настройки"
+    };
+    const activeTitle = titles[Store.activeTab] || "Бюджет";
     const mobileTopbarTitle = Utils.$("mobileTopbarTitle");
-    if (mobileTopbarTitle) {
-      const titles = {
-        overviewTab: "Бюджет",
-        analyticsTab: "Аналитика",
-        monthsTab: "Месяцы",
-        settingsTab: "Настройки"
-      };
-      mobileTopbarTitle.textContent = titles[Store.activeTab] || "Бюджет";
-    }
+    if (mobileTopbarTitle) mobileTopbarTitle.textContent = activeTitle;
+    const mainViewTitle = Utils.$("mainViewTitle");
+    if (mainViewTitle) mainViewTitle.textContent = activeTitle;
     document.querySelectorAll(".tab-panel").forEach((panel) => {
       const isActive = panel.id === Store.activeTab;
       panel.classList.toggle("is-active", isActive);
@@ -1390,12 +1394,7 @@ Object.assign(UI, {
       if (isActive) button.setAttribute("aria-current", "page");
       else button.removeAttribute("aria-current");
     });
-    const title = ({
-      overviewTab: "Бюджет",
-      analyticsTab: "Аналитика",
-      monthsTab: "Месяцы",
-      settingsTab: "Настройки"
-    })[Store.activeTab];
+    const title = titles[Store.activeTab];
     const announcer = Utils.$("routeAnnouncer");
     if (announcer && title) announcer.textContent = `Открыт раздел: ${title}`;
   },

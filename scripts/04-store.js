@@ -493,13 +493,16 @@ const Store = {
     const topExpense = expenses.slice().sort((a, b) => b.amount - a.amount)[0] || null;
     const topIncome = income.slice().sort((a, b) => b.amount - a.amount)[0] || null;
     const previousMonthKey = this.previousMonthKey(cacheKey);
-    const hasPreviousData = Boolean(this.data.months[previousMonthKey]) || this.getTransactions("month", previousMonthKey).length > 0;
+    const previousDataMonthKey = this.getMonthKeys()
+      .filter((item) => item < cacheKey)
+      .sort((a, b) => b.localeCompare(a))[0] || null;
+    const hasPreviousData = Boolean(previousDataMonthKey);
 
     let startBalance = Utils.roundMoney(Utils.safeNumber(monthMeta.start));
     // Авто-режим берет остаток прошлого месяца, а ручной режим позволяет пользователю
     // зафиксировать собственную стартовую точку для текущего месяца.
     if (!monthMeta.manualStart && hasPreviousData) {
-      startBalance = this.statsForMonth(previousMonthKey, memo).finalBalance;
+      startBalance = this.statsForMonth(previousDataMonthKey, memo).finalBalance;
     }
 
     const trendBuckets = Array.from({ length: daysInMonth }, (_, index) => ({

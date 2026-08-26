@@ -19,7 +19,7 @@ Object.assign(UI, {
       {
         label: "В истории",
         value: `${monthKeys.length} мес.`,
-        note: `В плюсе ${profitable} месяцев`
+        note: `В плюсе ${Utils.formatCount(profitable, "месяц", "месяца", "месяцев")}`
       },
         {
           label: "Лучший чистый итог",
@@ -82,7 +82,7 @@ Object.assign(UI, {
       const meta = Utils.createElement("div", "month-table__meta");
       title.appendChild(Utils.createElement("strong", "", Utils.monthLabel(monthKey)));
       [
-        `${stats.operations} операций`,
+        Utils.formatCount(stats.operations, "операция", "операции", "операций"),
         `${Utils.formatPercent(Math.max(0, stats.savingsRate))} накопления`,
         `Средний чек ${Utils.formatMoney(stats.averageCheck)}`
       ].forEach((text) => meta.appendChild(Utils.createElement("span", "", text)));
@@ -129,12 +129,15 @@ Object.assign(UI, {
       return;
     }
     const breakdown = Store.expenseBreakdown(Store.viewMonth).slice(0, 5);
-    const totalExpense = breakdown.reduce((sum, item) => sum + item.amount, 0);
+    const totalExpense = Store.statsForMonth(Store.viewMonth).totals.expense;
     const signature = breakdown.length
-      ? JSON.stringify(breakdown.map((item) => ({
-        id: item.category.id,
-        amount: item.amount
-      })))
+      ? JSON.stringify({
+        totalExpense,
+        categories: breakdown.map((item) => ({
+          id: item.category.id,
+          amount: item.amount
+        }))
+      })
       : "empty";
     if (root.dataset.renderSignature === signature) {
       return;
